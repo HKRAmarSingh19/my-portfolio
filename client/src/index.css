@@ -1,0 +1,135 @@
+﻿/* Webfonts are loaded via the <link> tag in index.html, not an @import here —
+   an @import inside the main stylesheet serialises the request behind this file
+   instead of starting it in parallel with the HTML parse. Change the font stack
+   in index.html and tailwind.config.js together. */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root { --background-light: #FAFAFA; --surface-light: #FFFFFF; --text-light: #0A0A0A; }
+  .dark { --background-dark: #0A0A0A; --surface-dark: #111111; --text-dark: #FAFAFA; }
+  * { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { @apply bg-background-light dark:bg-background-dark text-neutral-900 dark:text-neutral-100 font-sans transition-colors duration-200; }
+  ::selection { @apply bg-indigo-600 text-white dark:bg-indigo-500 dark:text-white; }
+}
+
+@layer components {
+  .prose-editorial { @apply max-w-none text-neutral-700 dark:text-neutral-300 leading-relaxed; }
+  .prose-editorial h1 { @apply text-3xl font-display font-bold tracking-tight text-neutral-900 dark:text-white mt-8 mb-4; }
+  .prose-editorial h2 { @apply text-2xl font-display font-bold tracking-tight text-neutral-900 dark:text-white mt-8 mb-3 border-b border-neutral-200 dark:border-neutral-800 pb-2; }
+  .prose-editorial h3 { @apply text-xl font-display font-semibold text-neutral-900 dark:text-white mt-6 mb-2; }
+  .prose-editorial p { @apply mb-4 leading-relaxed; }
+  .prose-editorial a { @apply text-neutral-900 dark:text-white underline underline-offset-2 decoration-neutral-400 hover:decoration-neutral-900 dark:hover:decoration-white transition-colors; }
+  .prose-editorial ul { @apply list-disc pl-6 mb-4 space-y-1; }
+  .prose-editorial ol { @apply list-decimal pl-6 mb-4 space-y-1; }
+  .prose-editorial blockquote { @apply border-l-2 border-neutral-300 dark:border-neutral-700 pl-4 italic text-neutral-600 dark:text-neutral-400 my-6; }
+  .prose-editorial code { @apply font-mono text-sm bg-neutral-100 dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 px-1.5 py-0.5 rounded; }
+  .prose-editorial pre { @apply rounded-xl overflow-x-auto my-6 p-4 bg-neutral-950 border border-neutral-800 text-sm; }
+  .prose-editorial pre code { @apply bg-transparent text-neutral-100 p-0; }
+  .prose-editorial img { @apply rounded-2xl my-8 w-full; }
+  .prose-editorial table { @apply w-full border-collapse text-sm my-6; }
+  .prose-editorial th { @apply font-mono text-xs uppercase tracking-wider bg-neutral-100 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 px-4 py-2 text-left text-neutral-600 dark:text-neutral-400; }
+  .prose-editorial td { @apply border border-neutral-200 dark:border-neutral-800 px-4 py-2 text-neutral-700 dark:text-neutral-300; }
+  .prose-invert p, .prose-invert li, .prose-invert blockquote { @apply text-neutral-300; }
+  .prose-invert h1, .prose-invert h2, .prose-invert h3 { @apply text-white; }
+  .bg-background-light { background-color: var(--background-light, #FAFAFA); }
+  .dark .bg-background-dark { background-color: var(--background-dark, #0A0A0A); }
+
+  /* Frosted panel used for floating overlays and elevated cards. */
+  .glass {
+    @apply bg-white/70 dark:bg-neutral-900/60 backdrop-blur-xl border border-neutral-200/70 dark:border-neutral-800/70;
+  }
+
+  /* Accent gradient text for hero emphasis. Both ramps stay inside one tonal
+     band so the word never reads as faded next to the solid heading text: dark
+     indigos on the light canvas, light indigos on the dark one. */
+  .text-gradient {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(110deg, #4f46e5, #312e81, #6366f1, #4f46e5);
+    background-size: 220% 100%;
+  }
+  .dark .text-gradient {
+    background-image: linear-gradient(110deg, #818cf8, #c7d2fe, #6366f1, #818cf8);
+  }
+
+  /* Hairline grid, faded at the edges — sits behind hero sections. */
+  .bg-grid {
+    background-image:
+      linear-gradient(to right, rgba(120, 120, 120, 0.09) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(120, 120, 120, 0.09) 1px, transparent 1px);
+    background-size: 56px 56px;
+  }
+  .dark .bg-grid {
+    background-image:
+      linear-gradient(to right, rgba(190, 190, 190, 0.07) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(190, 190, 190, 0.07) 1px, transparent 1px);
+  }
+  .bg-dots {
+    background-image: radial-gradient(rgba(120, 120, 120, 0.16) 1px, transparent 1px);
+    background-size: 22px 22px;
+  }
+  .dark .bg-dots {
+    background-image: radial-gradient(rgba(200, 200, 200, 0.12) 1px, transparent 1px);
+  }
+  /* Grid for saturated surfaces. `bg-grid` draws neutral grey lines, which
+     disappear against a coloured gradient — these are white instead, and the
+     same in both themes because the surface underneath already is. */
+  .bg-grid-light {
+    background-image:
+      linear-gradient(to right, rgba(255, 255, 255, 0.18) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255, 255, 255, 0.18) 1px, transparent 1px);
+    background-size: 28px 28px;
+  }
+  .mask-fade-edges {
+    mask-image: radial-gradient(ellipse 70% 60% at 50% 40%, black 30%, transparent 78%);
+    -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 40%, black 30%, transparent 78%);
+  }
+
+  /* Film grain overlay — softens flat gradients so they read as print, not web. */
+  .grain::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.035;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 220 220' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+  .dark .grain::after { opacity: 0.055; }
+
+  /* Perspective containers for the tilt/depth interactions. */
+  .perspective { perspective: 1100px; }
+  .preserve-3d { transform-style: preserve-3d; }
+  .backface-hidden { backface-visibility: hidden; }
+
+  /* Animated underline for editorial links. */
+  .link-underline {
+    @apply relative inline-block;
+  }
+  .link-underline::after {
+    content: '';
+    @apply absolute left-0 -bottom-0.5 h-[1.5px] w-full bg-indigo-600 dark:bg-indigo-400 origin-left scale-x-0 transition-transform duration-300 ease-out-expo;
+  }
+  .link-underline:hover::after { @apply scale-x-100; }
+}
+
+/* Respect the OS reduced-motion setting: kill ambient loops and long
+   transitions, keep opacity so nothing becomes invisible. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@media print {
+  .no-print { display: none !important; }
+  body { background: white; color: black; }
+  .resume-container { border: none; box-shadow: none; padding: 0; }
+}
