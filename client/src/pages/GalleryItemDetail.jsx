@@ -129,7 +129,6 @@ export const GalleryItemDetail = () => {
         {/* The shared Google-Maps style viewer: wheel-zoom, drag-pan, on-image
             arrows + counter, and download. */}
         <motion.div
-          key={imageIdx}
           initial={{ opacity: 0.4 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.3 }}

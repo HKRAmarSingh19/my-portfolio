@@ -597,7 +597,6 @@ export const Gallery = () => {
               onClick={(e) => e.stopPropagation()}
             >
               <ImageViewer
-                key={activeItem._id}
                 images={activeImages}
                 index={lbImageIdx}
                 onIndexChange={moveToImage}

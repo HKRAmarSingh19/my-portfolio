@@ -50,7 +50,7 @@ const ClampCaption = ({ text, lines = 2 }) => {
   }, [text, lines]);
 
   return (
-    <div className="w-full max-w-xl">
+    <div className="w-full max-w-xl rounded-2xl border border-white/10 bg-neutral-900/70 px-4 py-3 backdrop-blur-md">
       <p
         ref={ref}
         style={{
@@ -59,7 +59,7 @@ const ClampCaption = ({ text, lines = 2 }) => {
           WebkitBoxOrient: 'vertical',
           overflow: 'hidden',
         }}
-        className="text-sm leading-relaxed text-neutral-500 dark:text-neutral-400 transition-all"
+        className="text-sm leading-relaxed text-neutral-100 transition-all"
       >
         {text}
       </p>
@@ -67,7 +67,7 @@ const ClampCaption = ({ text, lines = 2 }) => {
         <button
           type="button"
           onClick={() => setOpen((o) => !o)}
-          className="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-indigo-600 dark:text-indigo-400 transition-colors hover:text-indigo-500"
+          className="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-indigo-300 transition-colors hover:text-indigo-200"
         >
           {open ? 'Read less' : 'Read more'}
         </button>
