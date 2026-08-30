@@ -31,6 +31,32 @@ export const ManageGallery = () => {
   const [videoFile, setVideoFile] = useState(null); // File | null
   const [videoPreviewUrl, setVideoPreviewUrl] = useState(''); // object-URL preview
   const videoInputRef = useRef(null);
+  // Live video-upload telemetry, set while a picked video is streaming to S3:
+  // { percent, loaded, total, elapsed, speed, done }. null = idle.
+  const [videoUpload, setVideoUpload] = useState(null);
+  // Rolling window for the smoothed instantaneous upload speed (MB/s).
+  const speedWindowRef = useRef([]); // [{ loaded, ts }]
+  // Rolls up the live server→S3 leg: holder for the poll interval id while a
+  // video streams up to S3, plus pre-video state we need in the UI.
+  const s3PollRef = useRef(null); // setInterval id | null
+
+  // Format bytes as a readable size (MB/GB).
+  const fmtBytes = (n) => {
+    if (!Number.isFinite(n) || n < 0) return '0 MB';
+    const mb = n / (1024 * 1024);
+    if (mb >= 1024) return `${(mb / 1024).toFixed(1)} GB`;
+    return `${mb.toFixed(1)} MB`;
+  };
+
+  // Format milliseconds as m:ss (or h:mm:ss if >= 1h).
+  const fmtElapsed = (ms) => {
+    const s = Math.floor(ms / 1000);
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    const sec = s % 60;
+    const pad = (x) => String(x).padStart(2, '0');
+    return h > 0 ? `${h}:${pad(m)}:${pad(sec)}` : `${m}:${pad(sec)}`;
+  };
   // Which newly-picked image is currently being zoom/cropped, or null.
   // `aspect` mirrors the crop box used: 1:1 for the main cover (matches the
   // square grid), a wider 3:4 for the rest — never asymmetric/free, since the
@@ -109,6 +135,12 @@ export const ManageGallery = () => {
     if (fileInputRef.current) fileInputRef.current.value = '';
     setVideoFile(null);
     setVideoPreviewUrl('');
+    setVideoUpload(null);
+    speedWindowRef.current = [];
+    if (s3PollRef.current) {
+      clearInterval(s3PollRef.current);
+      s3PollRef.current = null;
+    }
     if (videoInputRef.current) videoInputRef.current.value = '';
   };
 
@@ -225,6 +257,7 @@ export const ManageGallery = () => {
     e.preventDefault();
     setUploadError(null);
 
+    try {
     // Build the final ordered list from the unified preview: existing saved URLs
     // stay as-is, newly-picked files are uploaded and swapped in at their place.
     let images = mergedPreviews.map((m) => m.url);
@@ -249,14 +282,107 @@ export const ManageGallery = () => {
     // videos come back as plain URLs on edit and are sent straight through.
     let video = formState.video || '';
     if (videoFile) {
+      // Live upload progress: track loaded/total, elapsed, and a smoothed speed
+      // so the admin sees the video streaming to S3 instead of a frozen button.
+      const startTs = Date.now();
+      speedWindowRef.current = [];
+      setVideoUpload({
+        percent: 0, loaded: 0, total: videoFile.size, elapsed: 0, speed: 0,
+        s3Started: false, s3Percent: 0, s3Loaded: 0, s3Total: 0, s3Speed: 0,
+        done: false,
+      });
+
+      const onUploadProgress = (e) => {
+        const now = Date.now();
+        const loaded = e.loaded || 0;
+        const total = e.total || videoFile.size;
+        const elapsed = now - startTs;
+
+        // Instantaneous speed from consecutive deltas, smoothed over a small
+        // window to avoid jitter from the progress ticks.
+        const win = speedWindowRef.current;
+        win.push({ loaded, ts: now });
+        while (win.length > 0 && now - win[0].ts > 2000) win.shift();
+        const speed =
+          win.length >= 2 && win[win.length - 1].ts !== win[0].ts
+            ? ((win[win.length - 1].loaded - win[0].loaded) /
+                (win[win.length - 1].ts - win[0].ts)) *
+              (1000 / (1024 * 1024))
+            : 0;
+
+        setVideoUpload((prev) => ({
+          ...prev,
+          percent: total > 0 ? Math.min(100, (loaded / total) * 100) : 0,
+          loaded,
+          total,
+          elapsed,
+          speed,
+          done: false,
+        }));
+      };
+
       const videoFormData = new FormData();
+      // Client-generated id for live server→S3 progress. Append BEFORE the file
+      // so busboy parses it first — the server's streaming storage reads
+      // req.body.uploadId while the file is still streaming in.
+      const uploadId = crypto.randomUUID();
+      videoFormData.append('uploadId', uploadId);
       videoFormData.append('video', videoFile);
-      const { data: uploadedVideo } = await uploadApi.uploadVideo(videoFormData);
-      if (uploadedVideo?.url) {
-        video = uploadedVideo.url;
-      } else {
-        setUploadError('The server did not return a video URL.');
-        return;
+
+      // Rolling window for the S3 leg's smoothed speed.
+      const s3SpeedWindow = [];
+      const pollS3Progress = async () => {
+        try {
+          const { data: res } = await uploadApi.getVideoProgress(uploadId);
+          const p = res?.progress;
+          if (!p) return; // nothing in flight yet — keep the S3 bar hidden
+          const now = Date.now();
+          const loaded = p.loaded || 0;
+          s3SpeedWindow.push({ loaded, ts: now });
+          while (s3SpeedWindow.length > 0 && now - s3SpeedWindow[0].ts > 2000) s3SpeedWindow.shift();
+          const speed =
+            s3SpeedWindow.length >= 2 && s3SpeedWindow[s3SpeedWindow.length - 1].ts !== s3SpeedWindow[0].ts
+              ? ((s3SpeedWindow[s3SpeedWindow.length - 1].loaded - s3SpeedWindow[0].loaded) /
+                  (s3SpeedWindow[s3SpeedWindow.length - 1].ts - s3SpeedWindow[0].ts)) *
+                (1000 / (1024 * 1024))
+              : 0;
+          // The server streams the file and reports only loaded bytes (it
+          // can't know the total up front), so pace the S3 % off the size we
+          // already know from the picked file.
+          const total = videoFile.size;
+          setVideoUpload((prev) => ({
+            ...prev,
+            s3Started: true,
+            s3Percent: total > 0 ? Math.min(100, (loaded / total) * 100) : 0,
+            s3Loaded: loaded,
+            s3Total: total,
+            s3Speed: speed,
+          }));
+        } catch {
+          // A failed progress poll shouldn't abort the upload itself.
+        }
+      };
+
+      // Start polling the S3 leg ~2/sec; stopped once the POST settles below.
+      s3PollRef.current = setInterval(pollS3Progress, 500);
+
+      try {
+        const { data: uploadedVideo } = await uploadApi.uploadVideo(videoFormData, onUploadProgress);
+        // The upload streamed and the server returned — mark the panel complete
+        // only once the request actually succeeded (onUploadProgress hitting 100%
+        // alone is not enough; the server may still reject/fail after the body).
+        setVideoUpload((prev) => (prev ? { ...prev, percent: 100, done: true } : prev));
+        if (uploadedVideo?.url) {
+          video = uploadedVideo.url;
+        } else {
+          setUploadError('The server did not return a video URL.');
+          return;
+        }
+      } finally {
+        if (s3PollRef.current) {
+          clearInterval(s3PollRef.current);
+          s3PollRef.current = null;
+        }
       }
     }
 
@@ -273,6 +399,15 @@ export const ManageGallery = () => {
       updateMutation.mutate({ id: editingId, updatedItem: payload });
     } else {
       createMutation.mutate(payload);
+    }
+    } catch (err) {
+      // Convert any upload error (S3, size-limit, network) into the visible red
+      // inline error instead of leaving the modal frozen on a full progress bar.
+      const msg =
+        err?.response?.data?.message ||
+        (err?.code === 'ERR_NETWORK' ? 'Network error while uploading — check your connection and try again.' : err?.message);
+      setVideoUpload(null);
+      setUploadError(msg || 'Upload failed.');
     }
   };
 
@@ -668,7 +803,7 @@ export const ManageGallery = () => {
                       : 'Attach a video (plays with the photos)'}
                   </span>
                   <span className="text-[11px] font-mono text-neutral-500">
-                    MP4 · WebM · MOV · up to 100 MB
+                    MP4 · WebM · MOV · up to 500 MB
                   </span>
                 </button>
 
@@ -693,6 +828,50 @@ export const ManageGallery = () => {
                     >
                       <X className="h-3.5 w-3.5" />
                     </button>
+                  </div>
+                )}
+
+                {/* Live video-upload progress. The backend runs locally, so the
+                    browser→server leg is near-instant; what actually takes time is
+                    the server→S3 leg. Show ONLY that S3 bar (with a brief
+                    "preparing" state before it kicks in). */}
+                {videoUpload && (
+                  <div className="mt-3 rounded-xl border border-neutral-700 bg-neutral-950/60 p-4">
+                    {videoUpload.done ? (
+                      <div className="flex items-center justify-between text-[11px] font-mono text-neutral-300">
+                        <span className="inline-flex items-center gap-1.5">
+                          <Check className="h-3.5 w-3.5 text-emerald-400" />
+                          Upload complete
+                        </span>
+                      </div>
+                    ) : videoUpload.s3Started ? (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-[11px] font-mono text-neutral-300">
+                          <span className="inline-flex items-center gap-1.5">
+                            <Upload className="h-3.5 w-3.5 text-emerald-400" />
+                            Uploading to S3… {Math.round(videoUpload.s3Percent)}%
+                          </span>
+                          <span className="text-neutral-400">
+                            {fmtBytes(videoUpload.s3Loaded)} / {fmtBytes(videoUpload.s3Total || videoUpload.total)}
+                          </span>
+                        </div>
+                        <div className="h-1.5 w-full overflow-hidden rounded-full bg-neutral-800">
+                          <div
+                            className="h-full rounded-full bg-emerald-500 transition-[width] duration-150"
+                            style={{ width: `${videoUpload.s3Percent}%` }}
+                          />
+                        </div>
+                        <div className="flex items-center justify-between text-[11px] font-mono text-neutral-500">
+                          <span>{videoUpload.s3Speed > 0 ? `${videoUpload.s3Speed.toFixed(1)} MB/s` : '…'}</span>
+                          <span>elapsed {fmtElapsed(videoUpload.elapsed)}</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1.5 text-[11px] font-mono text-neutral-400">
+                        <Video className="h-3.5 w-3.5 text-indigo-400" />
+                        Uploading video… preparing
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

@@ -14,6 +14,8 @@ import {
   Menu,
   X,
   Images,
+  Instagram,
+  Linkedin,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -24,6 +26,8 @@ const adminNavItems = [
   { name: 'Blog Posts', href: '/admin/blog', icon: BookOpen },
   { name: 'Skills', href: '/admin/skills', icon: Layers },
   { name: 'Gallery', href: '/admin/gallery', icon: Images },
+  { name: 'Instagram', href: '/admin/instagram', icon: Instagram },
+  { name: 'LinkedIn', href: '/admin/linkedin', icon: Linkedin },
   { name: 'Experience / Resume', href: '/admin/experience', icon: Briefcase },
   { name: 'Messages', href: '/admin/messages', icon: Mail },
 ];

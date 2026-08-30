@@ -1,12 +1,11 @@
-import React, { useEffect, useState, useLayoutEffect } from 'react';
+import React, { useEffect, useState, useLayoutEffect, useRef } from 'react';
+import Hls from 'hls.js';
 import {
   ChevronLeft,
   ChevronRight,
   Download,
   Maximize2,
   Minimize2,
-  Play,
-  Pause,
   Volume2,
   VolumeX,
 } from 'lucide-react';
@@ -19,7 +18,9 @@ const PAN_SPEED = 3;
 
 // Common web video extensions — used to render a video element (with its own
 // audio controls) instead of a still image when the active media is a video.
-const VIDEO_EXT = /\.(mp4|webm|mov|m4v|ogg|ogv)(#|$|\?)/i;
+// `.m3u8` (HLS master playlist) is included so adaptive streams are also
+// recognised as video for poster/thumbnail/badge logic.
+const VIDEO_EXT = /\.(mp4|webm|mov|m4v|ogg|ogv|m3u8)(#|$|\?)/i;
 export const isVideoUrl = (url = '') => VIDEO_EXT.test(url);
 
 /**
@@ -109,6 +110,11 @@ export const ImageViewer = ({
   caption,
   onPrevSet,
   onNextSet,
+  // Optional adaptive-HLS master playlist for the item's video. When present,
+  // the video is played with hls.js (auto-switching quality on slow
+  // connections) instead of the raw `video` URL's progressive MP4. Leave
+  // undefined to keep direct MP4 playback (old videos without HLS).
+  videoHls,
 }) => {
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
@@ -118,7 +124,9 @@ export const ImageViewer = ({
   const [isFullscreen, setIsFullscreen] = useState(false);
   // Video-specific playback control (syncs to the actual element events).
   const [videoPlaying, setVideoPlaying] = useState(false);
-  const [videoMuted, setVideoMuted] = useState(true);
+  // The video starts paused and plays WITH audio the first time the user clicks
+  // or hovers it, so it begins unmuted (unlike the old muted-autoplay default).
+  const [videoMuted, setVideoMuted] = useState(false);
   // Whether the on-screen video controls are drawn. They show on hover and while
   // paused; while a video is playing they auto-hide after a short beat so the
   // frame stays clean — clicking the video itself toggles play/pause.
@@ -130,10 +138,27 @@ export const ImageViewer = ({
   const panLastRef = React.useRef(null);
   const zoomRef = React.useRef(1);
   const panRef = React.useRef({ x: 0, y: 0 });
+  // Live hls.js instance for the active video (destroyed on unmount/switch),
+  // and whether the player is stalled waiting for more data (shown as a spinner).
+  const hlsRef = React.useRef(null);
+  const [buffering, setBuffering] = React.useState(false);
+  // Player-bar state: current playback position, total duration, and how much
+  // of the video the player has buffered ahead — drives the timeline scrubber.
+  const [currentTime, setCurrentTime] = React.useState(0);
+  const [duration, setDuration] = React.useState(0);
+  const [buffered, setBuffered] = React.useState(0);
+  const seekBarRef = React.useRef(null);
 
   const imageCount = images.length;
   const currentMedia = images[index];
   const isVideo = isVideoUrl(currentMedia);
+  // Use adaptive HLS when the active media is this item's video AND an HLS
+  // manifest exists; otherwise fall back to the direct progressive MP4.
+  const useHls = isVideo && !!videoHls;
+
+  // Timeline percentages for the player bar, clamped to 0–100%.
+  const playedPct = duration ? Math.min(100, (currentTime / duration) * 100) : 0;
+  const bufferedPct = duration ? Math.min(100, (buffered / duration) * 100) : 0;
 
   // Reset zoom/pan whenever a different item is shown.
   useEffect(() => {
@@ -185,16 +210,177 @@ export const ImageViewer = ({
     };
   }, [isVideo, zoom, videoPlaying]);
 
-  // Clicking the video itself toggles play/pause (students' "click the video and
-  // it works as play/pause"): the on-screen button is a redundant affordance.
-  // Only at normal zoom — zoomed in, clicks are drag-pan territory.
+  // Clicking the video itself toggles play/pause, and starting it also turns the
+  // sound on (this is the only "play/pause" affordance — there is no on-screen
+  // button anymore). Only at normal zoom — zoomed in, clicks are drag-pan.
   const toggleVideo = () => {
     const v = mediaRef.current;
     if (!v) return;
     setShowControls(true);
-    if (v.paused) v.play().catch(() => {});
-    else v.pause();
+    if (v.paused) {
+      v.muted = false;
+      setVideoMuted(false);
+      v.play().catch(() => {});
+    } else {
+      v.pause();
+    }
   };
+
+  // Hovering the video starts it too (with audio): if it isn't already playing,
+  // unmute and play. This is a user gesture, so the browser permits sound here.
+  const playOnHover = () => {
+    const v = mediaRef.current;
+    if (!v || !v.paused) return;
+    v.muted = false;
+    setVideoMuted(false);
+    setShowControls(true);
+    v.play().catch(() => {});
+  };
+
+  // m:ss clock used for the player bar's time readout.
+  const formatTime = (sec) => {
+    if (!Number.isFinite(sec) || sec <= 0) return '0:00';
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60);
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  };
+
+  // Map a pointer position on the scrubber to a video time and seek there. Used
+  // by click-to-seek and drag-to-seek (the bar captures the pointer while held).
+  const seekFromClientX = (clientX) => {
+    const v = mediaRef.current;
+    const bar = seekBarRef.current;
+    if (!v || !bar || !duration) return;
+    const rect = bar.getBoundingClientRect();
+    const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+    v.currentTime = ratio * duration;
+    setCurrentTime(v.currentTime);
+  };
+  const onSeekDown = (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    seekBarRef.current?.setPointerCapture?.(e.pointerId);
+    seekFromClientX(e.clientX);
+  };
+  const onSeekMove = (e) => {
+    if (!seekBarRef.current?.hasPointerCapture?.(e.pointerId)) return;
+    seekFromClientX(e.clientX);
+  };
+  const onSeekUp = (e) => {
+    if (seekBarRef.current?.hasPointerCapture?.(e.pointerId)) {
+      seekBarRef.current?.releasePointerCapture?.(e.pointerId);
+    }
+  };
+
+  // While the video is PAUSED, keep the buffer topped up so resuming is instant:
+  // hls.js halts its fragment loading when the media pauses, which otherwise
+  // leaves the buffered bar stuck right at the playhead. This heartbeat runs
+  // every second while paused, measures how much is buffered AHEAD of the
+  // playhead, and if it's under BUFFER_AHEAD_TARGET (~30s) tells hls.js to load
+  // more — so pausing at 10s keeps buffering out to ~40s. hls.js stops on its
+  // own once it can't fetch further (end of stream or buffer cap).
+  const BUFFER_AHEAD_TARGET = 30; // seconds of media to keep ready ahead of pause
+  useEffect(() => {
+    if (videoPlaying || !useHls || !hlsRef.current) return;
+    const tick = () => {
+      const v = mediaRef.current;
+      const hls = hlsRef.current;
+      if (!v || !hls || !v.paused) return;
+      // How much of the video is buffered ahead of the current playhead.
+      const pos = v.currentTime;
+      let ahead = 0;
+      for (let i = 0; i < v.buffered.length; i++) {
+        if (v.buffered.start(i) <= pos && v.buffered.end(i) >= pos) {
+          ahead = v.buffered.end(i) - pos;
+          break;
+        }
+      }
+      // Not enough ready ahead -> ask hls.js to keep loading more fragments.
+      if (ahead < BUFFER_AHEAD_TARGET) hls.startLoad();
+    };
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [videoPlaying, useHls, currentTime]);
+
+  // Manage the hls.js instance for adaptive playback (the "plays smoothly on a
+  // slow connection" part). On the active video it attaches the manifest so the
+  // player auto-switches quality tier to match live bandwidth; for a plain
+  // progressive MP4 (no videoHls) we leave the element's native src untouched.
+  // The instance is torn down on unmount or whenever the media/manifest changes.
+  useEffect(() => {
+    const v = mediaRef.current;
+    const supported = Hls.isSupported();
+    if (!v || !useHls || !supported || !videoHls) {
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
+        hlsRef.current = null;
+      }
+      setBuffering(false);
+      return;
+    }
+    if (hlsRef.current) hlsRef.current.destroy();
+    // Adaptive-bitrate tuning so quality tracks live bandwidth: the player
+    // starts at the tier matching a modest initial estimate (plays instantly on
+    // a slow connection instead of stalling for 1080p), then ABR ramps UP on
+    // fast internet and DROPS DOWN the moment the buffer drains faster than it
+    // refills — no user action needed. The visible "Buffering…" spinner is
+    // driven by the video element's waiting/stalled events below.
+    const hls = new Hls({
+      enableWorker: true,
+      // -1 = auto: begin at the level that matches the current estimate.
+      startLevel: -1,
+      // ~1.5 Mbps start — enough for 360p to load immediately on weak links;
+      // ABR climbs from here on healthy bandwidth.
+      abrEwmaDefaultEstimate: 1.5e6,
+      // Fast upward response (quick voI) so a strong connection ramps to a high
+      // tier quickly; slower downward response so a brief dip doesn't cause
+      // needless quality yo-yoing.
+      abrEwmaFastVoI: 3.0,
+      abrEwmaSlowVoI: 9.0,
+      // Never fetch a higher tier than the on-screen size needs — no 1080p
+      // download for a small player (re-evaluated live on resize/fullscreen).
+      capLevelToPlayerSize: true,
+      // Hold ~30 s (up to 60 s) of buffered video so playback keeps flowing
+      // across brief speed dips without hitting 'waiting'.
+      maxBufferLength: 30,
+      maxMaxBufferLength: 60,
+      backBufferLength: 30,
+      // Prefetch the next fragment's start so tier switches don't stall.
+      startFragPrefetch: true,
+      // Resilience: retry dropped requests/slow responses instead of erroring.
+      fragLoadingMaxRetry: 6,
+      fragLoadingRetryDelay: 1000,
+      levelLoadingTimeOut: 10000,
+      fragLoadingTimeOut: 20000,
+      maxLoadingDelay: 4,
+    });
+    hls.loadSource(videoHls);
+    hls.attachMedia(v);
+    hls.on(Hls.Events.MANIFEST_PARSED, () => {
+      setVideoPlaying(true);
+      v.play().catch(() => {});
+    });
+    // Fatal network/media errors are recoverable: retry loading, or recover the
+    // media element, rather than killing playback on a transient failure.
+    hls.on(Hls.Events.ERROR, (_event, data) => {
+      if (!data?.fatal) return;
+      if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+        hls.startLoad();
+      } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
+        hls.recoverMediaError();
+      } else {
+        hls.destroy();
+        hlsRef.current = null;
+      }
+    });
+    hlsRef.current = hls;
+    return () => {
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
+        hlsRef.current = null;
+      }
+    };
+  }, [currentMedia, useHls, videoHls]);
 
   // Toggle browser fullscreen on the image wrapper (Esc exits). The wrapper —
   // not the bare media element — is the target so the on-image controls (prev/
@@ -331,13 +517,17 @@ export const ImageViewer = ({
           <video
             key={currentMedia}
             ref={mediaRef}
-            src={currentMedia}
+            // With HLS the manifest is attached by hls.js (no native src), so
+            // it stays unset on that path; progressive MP4 keeps its src.
+            src={useHls ? undefined : currentMedia}
             poster={images.find((im) => !isVideoUrl(im) || im !== currentMedia) || undefined}
             controls={false}
-            muted
-            autoPlay
             playsInline
             loop
+            // No autoplay: the video starts paused (showing its poster/first
+            // frame) and plays WITH audio the first time the user hovers it
+            // (playOnHover) or clicks it (toggleVideo).
+            onMouseEnter={playOnHover}
             onClick={(e) => {
               e.stopPropagation();
               if (zoom === 1) toggleVideo();
@@ -346,6 +536,22 @@ export const ImageViewer = ({
             onPlay={() => setVideoPlaying(true)}
             onPause={() => setVideoPlaying(false)}
             onEnded={() => setVideoPlaying(false)}
+            // On a slow connection the player stalls while buffering — surface
+            // it with a spinner so the "buffering" state is visible.
+            onWaiting={() => setBuffering(true)}
+            onStalled={() => setBuffering(true)}
+            onPlaying={() => setBuffering(false)}
+            onCanPlay={() => setBuffering(false)}
+            // Player-bar feed: playhead position, total length, and buffered
+            // ahead amount keep the timeline scrubber in sync. Duration arrives
+            // when metadata loads (and updates if it changes, e.g. HLS).
+            onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
+            onLoadedMetadata={(e) => setDuration(e.currentTarget.duration || 0)}
+            onDurationChange={(e) => setDuration(e.currentTarget.duration || 0)}
+            onProgress={(e) => {
+              const v = e.currentTarget;
+              setBuffered(v.buffered?.length ? v.buffered.end(v.buffered.length - 1) : 0);
+            }}
             style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})` }}
             className={`w-auto rounded-xl object-contain shadow-2xl will-change-transform bg-black ${
               isFullscreen ? 'max-h-screen max-w-full' : 'max-h-[68vh] max-w-full'
@@ -363,24 +569,14 @@ export const ImageViewer = ({
           />
         )}
 
-        {/* Video controls — Play/Pause and Mute/Unmute, overlaid on the video.
-            Autoplay is muted (browsers block unmuted autoplay); the Mute button
-            flips it. Only interactive at normal zoom, and they auto-hide a beat
-            after playback starts (move the mouse over the video to bring them
-            back). Clicking the video itself also toggles play/pause. */}
+        {/* Video player bar — mute toggle (bottom-left) + timeline scrubber with
+            buffered range and current/total time (bottom-center). The scrubber is
+            click-and-drag to seek. These controls show while paused or hovering
+            and auto-hide a beat into uninterrupted playback (move the mouse over
+            the video to bring them back). There is no play/pause button — the
+            video plays on hover (playOnHover) and toggles on click (toggleVideo). */}
         {isVideo && zoom === 1 && showControls && (
           <>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                toggleVideo();
-              }}
-              aria-label={videoPlaying ? 'Pause video' : 'Play video'}
-              tabIndex={0}
-              className="absolute left-1/2 top-1/2 grid h-14 w-14 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-black/55 text-white backdrop-blur transition hover:bg-black/70"
-            >
-              {videoPlaying ? <Pause className="h-6 w-6" /> : <Play className="h-6 w-6" />}
-            </button>
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -397,7 +593,55 @@ export const ImageViewer = ({
             >
               {videoMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
             </button>
+
+            {/* Timeline: played (indigo), buffered (white/25), draggable knob. */}
+            <div
+              ref={seekBarRef}
+              onPointerDown={onSeekDown}
+              onPointerMove={onSeekMove}
+              onPointerUp={onSeekUp}
+              onPointerCancel={onSeekUp}
+              style={{ touchAction: 'none' }}
+              className="absolute bottom-2.5 left-14 right-20 flex select-none items-center gap-2.5"
+            >
+              <div className="group relative h-4 flex-1 cursor-pointer">
+                <div className="absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 overflow-hidden rounded-full bg-white/15">
+                  <div
+                    className="absolute inset-y-0 left-0 bg-white/25"
+                    style={{ width: `${bufferedPct}%` }}
+                  />
+                  <div
+                    className="absolute inset-y-0 left-0 rounded-full bg-indigo-400"
+                    style={{ width: `${playedPct}%` }}
+                  />
+                </div>
+                {/* Knob rides the playhead; fades in on hover. */}
+                <div
+                  className="absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white shadow-md opacity-0 transition-opacity group-hover:opacity-100"
+                  style={{ left: `${playedPct}%` }}
+                />
+              </div>
+              <span className="shrink-0 font-mono text-[10px] tabular-nums text-white/85">
+                {formatTime(currentTime)} / {formatTime(duration)}
+              </span>
+            </div>
           </>
+        )}
+
+        {/* Buffering indicator — shown while the player stalls for more data on
+            a slow connection (HLS switching tier, or the MP4 catching up). */}
+        {isVideo && buffering && (
+          <div
+            className="pointer-events-none absolute inset-0 grid place-items-center"
+            style={{ pointerEvents: 'none' }}
+          >
+            <div className="flex flex-col items-center gap-2 rounded-2xl bg-black/55 px-5 py-4 backdrop-blur">
+              <span className="h-8 w-8 animate-spin rounded-full border-2 border-white/20 border-t-white" />
+              <span className="text-[11px] font-mono uppercase tracking-widest text-white/80">
+                Buffering…
+              </span>
+            </div>
+          </div>
         )}
 
         {/* Prev/next controls sit directly on the media at 50% opacity. Only

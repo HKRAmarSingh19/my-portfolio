@@ -36,7 +36,7 @@ A modern, high-performance, minimal editorial portfolio application built on **M
 | **Frontend** | React 19, Vite, React Router v7, TanStack Query, Framer Motion, React Three Fiber, Lucide Icons |
 | **Styling** | Tailwind CSS, PostCSS |
 | **Markdown** | React-Markdown, Remark-GFM, Rehype-Highlight |
-| **Backend** | Node.js, Express.js (ES Modules), Helmet, Morgan, Express-Rate-Limit, Multer |
+| **Backend** | Node.js, Express.js (ES Modules), Helmet, Morgan, Express-Rate-Limit, Multer (memory), AWS SDK (S3) |
 | **Database** | MongoDB, Mongoose ODM |
 | **Authentication** | JSON Web Tokens (JWT), Bcrypt password hashing |
 | **Validation** | Zod schema validation middleware |
@@ -54,16 +54,28 @@ npm run install:all
 ```
 
 ### 2. Environment Variables
-Configure `server/.env` (a pre-filled `.env.example` is committed as a template):
+Configure `server/.env` (a pre-filled `.env.example` is committed as a template). `JWT_SECRET` is **required** — the server refuses to start without a strong value (≥16 chars):
 ```env
 PORT=5000
 NODE_ENV=development
-MONGODB_URI=mongodb://127.0.0.1:27017/mern_portfolio
+MONGODB_URI=mongodb://127.0.0.1:27017/mern_portfolio   # or a MongoDB Atlas connection string for permanent/cloud storage
 JWT_SECRET=supersecretjwtkey_replace_in_production_portfolio_2026
-JWT_EXPIRE=30d
+JWT_EXPIRE=24h
 ADMIN_EMAIL=admin@portfolio.local
 ADMIN_PASSWORD=AdminPass123!
 CLIENT_URL=http://localhost:5173
+```
+
+For Google sign-in, add to `server/.env` (see [Google OAuth setup](#-google-oauth-setup-optional)):
+```env
+GOOGLE_CLIENT_ID=...
+GOOGLE_CLIENT_SECRET=...
+GOOGLE_REDIRECT_URI=http://localhost:5173
+ALLOWED_ADMIN_EMAILS=you@gmail.com, coadmin@gmail.com   # the ONLY accounts allowed to sign in (comma-separated)
+```
+And set the matching public id in `client/.env`:
+```env
+VITE_GOOGLE_CLIENT_ID=...
 ```
 
 ### 3. Seed the Database
@@ -72,9 +84,7 @@ Populate starter projects, blog posts, skills, resume experiences, gallery items
 npm run seed
 ```
 
-> **Default Admin Account:**
-> - **Email:** `admin@portfolio.local`
-> - **Password:** `AdminPass123!`
+> **Note:** Password login is **disabled** — the dashboard is accessible **only** via Google OAuth with your allowed account. The seeded `ADMIN_EMAIL`/`ADMIN_PASSWORD` are used only to create the initial user record and are not a usable login.
 
 ### 4. Start the Development Servers
 Runs the backend API (`localhost:5000`) and the Vite frontend (`localhost:5173`) concurrently:
@@ -99,6 +109,43 @@ From the root `package.json`:
 
 ---
 
+## 🔐 Google OAuth Setup (optional)
+
+The recommended way to sign into the admin dashboard is **"Continue with Google"** — only your own verified Google account is allowed. It requires a Google Cloud OAuth client:
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com/) → **APIs & Services → Credentials** → **Create Credentials → OAuth client ID** (type **Web application**).
+2. Under **Authorized JavaScript origins** add your SPA origin (e.g. `http://localhost:5173`).
+3. Under **Authorized redirect URIs** add the **same** origin (e.g. `http://localhost:5173`).
+4. Copy the **Client ID** and **Client Secret**.
+
+Then configure the variables shown in [Step 2](#2-environment-variables):
+- **Server** (`server/.env`): `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`, and `ALLOWED_ADMIN_EMAILS` — a comma-separated list of **your own** verified Google email(s). This is the hard allowlist: any other Google account is rejected with `403`, no matter what.
+- **Client** (`client/.env`): `VITE_GOOGLE_CLIENT_ID` (the public id — it and the server's `GOOGLE_CLIENT_ID` are the same value).
+
+> The OAuth **secret never leaves the server** — the browser sends only an authorization code, which the server exchanges with Google (Authorization Code flow with PKCE). **Google is the only sign-in method**: the password login form and route are removed, so only your allowed Google account can access the dashboard. Admin sessions use a short-lived JWT (`JWT_EXPIRE`, default 24h); **logging out "everywhere" is a real server-side revoke** — the token version is bumped so previously-issued tokens are rejected, even if leaked. OAuth must be fully configured (server + `VITE_GOOGLE_CLIENT_ID`) before the dashboard is reachable; without it, the sign-in button is disabled rather than offering a password fallback.
+
+---
+
+## ☁️ AWS S3 Media Storage
+
+Photos & videos are stored in an **AWS S3 bucket** (public-read) instead of the server's local disk — this is required for serverless/ephemeral hosts like Render that reset their filesystem on deploy. Multer holds uploads in memory and streams them to S3; the DB stores the **absolute S3 URL** (`https://<bucket>.s3.<region>.amazonaws.com/<key>`), which the client renders directly.
+
+Setup (one-time, in the [AWS Console](https://console.aws.amazon.com)):
+1. Create an **S3 bucket** and apply a **public-read bucket policy** so gallery visitors can load the media.
+2. Create an **IAM user** with `AmazonS3FullAccess` and generate an **Access Key**.
+3. Add to `server/.env`:
+   ```env
+   AWS_ACCESS_KEY_ID=...
+   AWS_SECRET_ACCESS_KEY=...
+   AWS_REGION=ap-southeast-1
+   AWS_BUCKET=portfolio-media-hkramar
+   ```
+   The public URL for each key follows the standard `https://<bucket>.s3.<region>.amazonaws.com/<key>` format.
+
+No client changes are needed — every media consumer already renders absolute URLs verbatim.
+
+---
+
 ## 📂 Project Architecture
 
 ```
@@ -107,14 +154,15 @@ Portfolio/
 ├── README.md
 │
 ├── server/                      # Express REST API
-│   ├── config/db.js             # MongoDB connection
+│   ├── config/db.js             # MongoDB (Atlas) connection
+│   ├── config/s3.js             # AWS S3 client + uploadToS3 (media storage)
 │   ├── models/                  # User, Project, BlogPost, Skill,
 │   │                            #   Experience, Message, GalleryItem
 │   ├── controllers/             # Express route handlers
-│   ├── middleware/              # Auth (JWT), Zod validation, error handler, Multer upload
+│   ├── middleware/              # Auth (JWT), Zod validation, error handler, Multer upload (memory)
 │   ├── routes/                  # /api/* (auth, projects, blog, skills,
 │   │                            #   experience, messages, gallery, uploads, stats, profile)
-│   ├── uploads/                 # User-uploaded images & videos (git-ignored)
+│   ├── uploads/                 # Legacy local media (pre-S3 backup; git-ignored)
 │   ├── utils/seed.js            # Sample database seeder
 │   ├── server.js                # Express app entry
 │   └── package.json
@@ -155,7 +203,7 @@ All endpoints are JSON and mounted under `/api` on the Express server. The main 
 | `/api/experience` | GET | Resume timeline |
 | `/api/gallery` | GET, GET /:id | Gallery items (photos + video) |
 | `/api/messages` | POST (public) / admin CRUD | Contact inquiries + inbox |
-| `/api/upload` | POST `multipart/form-data` | Image/video upload (Multer) |
+| `/api/upload` | POST `multipart/form-data` | Image/video upload → AWS S3 (Multer memory + S3) |
 | `/api/stats` | GET | Dashboard analytics |
 | `/api/profile` | GET | Portfolio profile/settings |
 

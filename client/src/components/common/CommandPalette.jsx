@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, FolderGit2, BookOpen, Layers, User, FileText, Mail, Sun, Moon, Copy, Check, ExternalLink, Images } from 'lucide-react';
+import { Search, FolderGit2, BookOpen, Layers, User, FileText, Mail, Sun, Moon, Copy, Check, ExternalLink, Images, Instagram } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 
 export const CommandPalette = ({ isOpen, onClose }) => {
@@ -38,6 +38,7 @@ export const CommandPalette = ({ isOpen, onClose }) => {
     { label: 'Go to About Me', icon: User, action: () => { navigate('/about'); onClose(); } },
     { label: 'Go to Skills Directory', icon: Layers, action: () => { navigate('/skills'); onClose(); } },
     { label: 'Go to Gallery', icon: Images, action: () => { navigate('/gallery'); onClose(); } },
+    { label: 'Go to Instagram Feed', icon: Instagram, action: () => { navigate('/gallery'); onClose(); } },
     { label: 'Go to Technical Blog', icon: BookOpen, action: () => { navigate('/blog'); onClose(); } },
     { label: 'View Resume & Experience', icon: FileText, action: () => { navigate('/resume'); onClose(); } },
     { label: 'Contact & Inquiries', icon: Mail, action: () => { navigate('/contact'); onClose(); } },

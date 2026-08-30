@@ -32,8 +32,10 @@ api.interceptors.response.use(
 
 export const authApi = {
   login: (credentials) => api.post('/auth/login', credentials),
+  googleLogin: (code, redirectUri) => api.post('/auth/google', { code, redirectUri }),
   getMe: () => api.get('/auth/me'),
   updateDetails: (data) => api.put('/auth/update-details', data),
+  logout: () => api.post('/auth/logout'),
 };
 
 export const projectsApi = {
@@ -74,6 +76,20 @@ export const galleryApi = {
   delete: (id) => api.delete(`/gallery/${id}`),
 };
 
+export const instagramApi = {
+  getAll: (params) => api.get('/instagram', { params }),
+  getMeta: () => api.get('/instagram/meta'),
+  sync: () => api.post('/instagram/sync'),
+  delete: (id) => api.delete(`/instagram/${id}`),
+};
+
+export const linkedInApi = {
+  getAll: (params) => api.get('/linkedin', { params }),
+  getMeta: () => api.get('/linkedin/meta'),
+  create: (data) => api.post('/linkedin', data),
+  delete: (id) => api.delete(`/linkedin/${id}`),
+};
+
 export const messagesApi = {
   send: (data) => api.post('/contact/submit', data),
   getAll: (params) => api.get('/messages', { params }),
@@ -102,10 +118,13 @@ export const uploadApi = {
     api.post('/upload/multiple', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     }),
-  uploadVideo: (formData) =>
+  uploadVideo: (formData, onUploadProgress) =>
     api.post('/upload/video', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
+      onUploadProgress,
     }),
+  // Polled while a video uploads so the admin sees live server→S3 progress.
+  getVideoProgress: (uploadId) => api.get(`/upload/video/progress/${uploadId}`),
 };
 
 export default api;

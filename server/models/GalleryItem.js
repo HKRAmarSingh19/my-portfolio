@@ -28,6 +28,15 @@ const galleryItemSchema = new mongoose.Schema(
       default: '',
       trim: true,
     },
+    // Master HLS playlist (.m3u8) for adaptive playback of `video`. Empty
+    // string = fall back to the progressive MP4 (old items, or when MediaConvert
+    // isn't configured). Populated asynchronously once the transcode job
+    // completes; stays '' on old items / when transcoding is disabled.
+    videoHls: {
+      type: String,
+      default: '',
+      trim: true,
+    },
     category: {
       type: String,
       default: 'Personal',

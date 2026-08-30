@@ -141,6 +141,7 @@ export const GalleryItemDetail = () => {
             itemId={item._id}
             itemTitle={item.title}
             caption={item.description}
+            videoHls={item.videoHls}
           />
         </motion.div>
 

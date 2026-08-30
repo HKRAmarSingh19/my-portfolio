@@ -32,6 +32,8 @@ import ManageBlog from './pages/admin/ManageBlog';
 import ManageSkills from './pages/admin/ManageSkills';
 import ManageExperiences from './pages/admin/ManageExperiences';
 import ManageGallery from './pages/admin/ManageGallery';
+import ManageInstagram from './pages/admin/ManageInstagram';
+import ManageLinkedIn from './pages/admin/ManageLinkedIn';
 import Messages from './pages/admin/Messages';
 
 
@@ -91,6 +93,8 @@ export function App() {
                 <Route path="skills" element={<ManageSkills />} />
                 <Route path="experience" element={<ManageExperiences />} />
                 <Route path="gallery" element={<ManageGallery />} />
+                <Route path="instagram" element={<ManageInstagram />} />
+                <Route path="linkedin" element={<ManageLinkedIn />} />
                 <Route path="messages" element={<Messages />} />
               </Route>
 

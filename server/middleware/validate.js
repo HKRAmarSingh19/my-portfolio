@@ -31,6 +31,15 @@ export const loginSchema = z.object({
   }),
 });
 
+// Body for the Google OAuth exchange: an authorization code from the SPA plus
+// the redirect URI it was issued against (must match on the token exchange).
+export const googleCodeSchema = z.object({
+  body: z.object({
+    code: z.string().min(1, 'Authorization code is required'),
+    redirectUri: z.string().url('Valid redirect URI is required'),
+  }),
+});
+
 export const contactSchema = z.object({
   body: z.object({
     name: z.string().min(2, 'Name must be at least 2 characters'),

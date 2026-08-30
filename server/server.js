@@ -20,11 +20,23 @@ import statsRoutes from './routes/statsRoutes.js';
 import uploadRoutes from './routes/uploadRoutes.js';
 import profileRoutes from './routes/profileRoutes.js';
 import galleryRoutes from './routes/galleryRoutes.js';
+import instagramRoutes from './routes/instagramRoutes.js';
+import linkedInRoutes from './routes/linkedInRoutes.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 dotenv.config();
+
+// Refuse to boot without a strong JWT secret. A missing/wrong secret would
+// silently use a hardcoded default — forgeable tokens for a personal admin.
+const secret = process.env.JWT_SECRET;
+if (!secret || secret.length < 16) {
+  console.error('[Fatal] JWT_SECRET is missing or too short (< 16 chars).');
+  console.error('Set a strong random value in server/.env before starting.');
+  process.exit(1);
+}
+
 connectDB();
 
 const app = express();
@@ -88,6 +100,8 @@ app.use('/api/stats', statsRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/gallery', galleryRoutes);
+app.use('/api/instagram', instagramRoutes);
+app.use('/api/linkedin', linkedInRoutes);
 
 app.use(notFound);
 app.use(errorHandler);
@@ -97,6 +111,23 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`🚀 [Server] Minimal Editorial Portfolio API running on port ${PORT}`);
 });
+
+// Best-effort Instagram feed sync on boot (when configured): keeps a fresh
+// deploy's feed up to date without manual action. Never blocks or fails server
+// startup — if the API errors (bad/expired token, network), we log and continue.
+import('./config/instagram.js')
+  .then(async ({ isInstagramConfigured, syncInstagramNow }) => {
+    if (!isInstagramConfigured()) return; // not configured — skip, feed stays empty
+    try {
+      const r = await syncInstagramNow();
+      console.log(`📸 Instagram feed synced on boot (${r.synced} posts, ${r.total} stored)`);
+    } catch (err) {
+      console.error('Instagram boot sync failed (continuing):', err.message);
+    }
+  })
+  .catch(() => { /* import failure — ignore, feature stays off */ });
+// (LinkedIn feed needs no boot sync — it is curated manually by the admin via
+// pasting post URLs, so there is nothing to auto-fetch on startup.)
 
 export default app;
 

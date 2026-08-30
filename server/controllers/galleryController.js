@@ -1,4 +1,5 @@
 import GalleryItem from '../models/GalleryItem.js';
+import { deleteObjectsFromS3, deleteObjectsByPrefix, urlToKey } from '../config/s3.js';
 
 export const getGalleryItems = async (req, res, next) => {
   try {
@@ -103,7 +104,31 @@ export const deleteGalleryItem = async (req, res, next) => {
       });
     }
 
+    // Collect every S3 URL this item references (cover, extra images, video, and
+    // the HLS manifest if one exists) and delete the underlying objects from the
+    // bucket too, so removing an item doesn't leave orphaned media accumulating
+    // in S3. This runs before the record is dropped so we still have the URLs if
+    // deleteFromS3 fails.
+    const mediaUrls = [item.image, ...(item.images || []), item.video, item.videoHls].filter(Boolean);
+    // The HLS manifest is just a pointer; its segments live under the same
+    // directory prefix (hls/<name>/...). Derive that prefix from the manifest
+    // key and delete the whole set, not just the master playlist.
+    const hlsPrefix = item.videoHls
+      ? urlToKey(item.videoHls).replace(/[^/]+$/, '') // keep everything up to the last '/'
+      : null;
+
     await item.deleteOne();
+
+    if (mediaUrls.length || hlsPrefix) {
+      try {
+        if (mediaUrls.length) await deleteObjectsFromS3(mediaUrls);
+        if (hlsPrefix) await deleteObjectsByPrefix(hlsPrefix);
+      } catch (err) {
+        // The record is already gone; the leftover S3 object is a (managed)
+        // leak but must not fail the response the admin sees.
+        console.error(`Failed to delete S3 objects for gallery item ${item._id}:`, err.message);
+      }
+    }
 
     res.status(200).json({
       success: true,

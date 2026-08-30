@@ -11,8 +11,8 @@ const navLinks = [
   { name: 'Skills', href: '/skills' },
   { name: 'Blog', href: '/blog' },
   { name: 'Resume', href: '/resume' },
-  { name: 'Contact', href: '/contact' },
   { name: 'Gallery', href: '/gallery' },
+  { name: 'Contact', href: '/contact' },
 ];
 
 export const Navbar = ({ onOpenCommandPalette }) => {
@@ -40,11 +40,11 @@ export const Navbar = ({ onOpenCommandPalette }) => {
             <span className="text-[10px] tracking-widest uppercase font-mono text-neutral-500 dark:text-neutral-400">Software Engineer</span>
           </div>
         </Link>
-        <nav className="hidden md:flex items-center gap-1 bg-neutral-100/60 dark:bg-neutral-900/60 p-1 rounded-full border border-neutral-200/60 dark:border-neutral-800/60 backdrop-blur-sm">
+        <nav className="hidden lg:flex items-center gap-0.5 bg-neutral-100/60 dark:bg-neutral-900/60 p-1 rounded-full border border-neutral-200/60 dark:border-neutral-800/60 backdrop-blur-sm">
           {navLinks.map((link) => {
             const isActive = location.pathname === link.href || (link.href !== '/' && location.pathname.startsWith(link.href));
             return (
-              <Link key={link.name} to={link.href} className={`relative px-4 py-1.5 text-sm font-medium transition-colors rounded-full ${isActive ? 'text-neutral-900 dark:text-white font-semibold' : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white'}`}>
+              <Link key={link.name} to={link.href} className={`relative px-3 py-1.5 text-[13px] font-medium whitespace-nowrap transition-colors rounded-full ${isActive ? 'text-neutral-900 dark:text-white font-semibold' : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white'}`}>
                 {isActive && <motion.div layoutId="activeNavTab" className="absolute inset-0 bg-white dark:bg-neutral-800 rounded-full shadow-sm" transition={{ type: 'spring', stiffness: 400, damping: 30 }} />}
                 <span className="relative z-10">{link.name}</span>
               </Link>

@@ -2,12 +2,14 @@ import React, { useMemo, useState, useEffect, useRef, useLayoutEffect } from 're
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
-import { Search, X, Star, Images, Maximize2, ChevronLeft, ChevronRight, ArrowRight, Play } from 'lucide-react';
+import { Search, X, Star, Images, Maximize2, ChevronLeft, ChevronRight, ArrowRight, Play, Instagram, Linkedin } from 'lucide-react';
 import { galleryApi } from '../api/client';
 import PageTransition from '../components/layout/PageTransition';
 import SEO from '../components/common/SEO';
 import PageHeader from '../components/common/PageHeader';
 import ImageViewer, { isVideoUrl } from '../components/common/ImageViewer';
+import InstagramFeed from '../components/instagram/InstagramFeed';
+import LinkedInFeed from '../components/linkedin/LinkedInFeed';
 
 /**
  * Clamps children to `lines`, and only when the text genuinely overflows that
@@ -90,6 +92,9 @@ const ScrollLock = () => {
 };
 
 export const Gallery = () => {
+  // Which sub-section is shown: 'gallery' (the curated collection) or
+  // 'instagram' (the auto-synced Instagram feed).
+  const [activeTab, setActiveTab] = useState('gallery');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
 
@@ -159,6 +164,11 @@ export const Gallery = () => {
   const { data, isLoading } = useQuery({
     queryKey: ['gallery'],
     queryFn: () => galleryApi.getAll({}),
+    // Stay fresh on every mount: the admin adds items and expects to see them
+    // immediately, but the global 5-min staleTime in main.jsx would otherwise
+    // keep a previously-loaded gallery (e.g. another open tab) hidden for up
+    // to 5 minutes.
+    staleTime: 0,
   });
 
   const items = data?.data?.data || [];
@@ -207,7 +217,7 @@ export const Gallery = () => {
     <PageTransition>
       <SEO
         title="Gallery & Visual Archive"
-        description="A mixed showcase of personal photography, travel, and product visuals."
+        description="A mixed showcase of personal photography, travel, and product visuals, plus live Instagram and LinkedIn feeds."
       />
 
       <div className="relative overflow-x-clip pt-28 sm:pt-36 pb-20">
@@ -216,9 +226,53 @@ export const Gallery = () => {
             eyebrow="Visual Archive"
             eyebrowIcon={Images}
             title="Gallery"
-            lead="A mixed showcase of personal photography, travel, and product visuals — moments worth keeping, framed in the same minimal restraint as the rest of the site."
+            lead="A mixed showcase of personal photography, travel, and product visuals — plus live feeds pulled straight from Instagram and LinkedIn, all framed in the same minimal restraint as the rest of the site."
           />
 
+          {/* Sub-section tabs: the curated Gallery collection, plus the
+              auto-synced Instagram and LinkedIn feeds. Styled like the category
+              chips below for consistency. */}
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => setActiveTab('gallery')}
+              className={`inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 font-mono text-xs transition-colors ${
+                activeTab === 'gallery'
+                  ? 'bg-indigo-600 font-semibold text-white'
+                  : 'bg-neutral-100 dark:bg-neutral-900 text-neutral-600 dark:text-neutral-400 hover:text-indigo-600 dark:hover:text-indigo-400'
+              }`}
+              aria-pressed={activeTab === 'gallery'}
+            >
+              <Images className="h-3 w-3" />
+              Gallery
+            </button>
+            <button
+              onClick={() => setActiveTab('instagram')}
+              className={`inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 font-mono text-xs transition-colors ${
+                activeTab === 'instagram'
+                  ? 'bg-indigo-600 font-semibold text-white'
+                  : 'bg-neutral-100 dark:bg-neutral-900 text-neutral-600 dark:text-neutral-400 hover:text-indigo-600 dark:hover:text-indigo-400'
+              }`}
+              aria-pressed={activeTab === 'instagram'}
+            >
+              <Instagram className="h-3 w-3" />
+              Instagram
+            </button>
+            <button
+              onClick={() => setActiveTab('linkedin')}
+              className={`inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 font-mono text-xs transition-colors ${
+                activeTab === 'linkedin'
+                  ? 'bg-indigo-600 font-semibold text-white'
+                  : 'bg-neutral-100 dark:bg-neutral-900 text-neutral-600 dark:text-neutral-400 hover:text-indigo-600 dark:hover:text-indigo-400'
+              }`}
+              aria-pressed={activeTab === 'linkedin'}
+            >
+              <Linkedin className="h-3 w-3" />
+              LinkedIn
+            </button>
+          </div>
+
+          {activeTab === 'gallery' ? (
+            <>
           <div className="space-y-5 border-b border-neutral-200 dark:border-neutral-800 pb-6">
             <div className="relative">
               <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
@@ -560,6 +614,12 @@ export const Gallery = () => {
               ))}
             </div>
           )}
+            </>
+          ) : activeTab === 'instagram' ? (
+            <InstagramFeed />
+          ) : (
+            <LinkedInFeed />
+          )}
         </div>
       </div>
 
@@ -604,6 +664,7 @@ export const Gallery = () => {
                 itemTitle={activeItem.title}
                 title={activeItem.title}
                 caption={activeItem.description}
+                videoHls={activeItem.videoHls}
                 onPrevSet={() => {
                   setLbImageIdx(0);
                   setLightboxIndex(

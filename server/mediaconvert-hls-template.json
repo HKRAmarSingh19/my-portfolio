@@ -1,0 +1,242 @@
+{
+  "name": "PortfolioHlsAbr",
+  "description": "Adaptive HLS (240p/360p/720p/1080p) output for portfolio videos. Import this JSON into AWS Elemental MediaConvert as a Job Template named 'PortfolioHlsAbr', then set AWS_MEDIACONVERT_JOB_TEMPLATE=PortfolioHlsAbr in server/.env.",
+  "settings": {
+    "inputs": [
+      {
+        "audioSelectors": {
+          "Audio Selector 1": {
+            "defaultSelection": "DEFAULT"
+          }
+        },
+        "videoSelector": {},
+        "timecodeSource": "ZEROBASED"
+      }
+    ],
+    "outputGroups": [
+      {
+        "name": "HLS",
+        "outputGroupSettings": {
+          "type": "HLS_GROUP_SETTINGS",
+          "hlsGroupSettings": {
+            "segmentLength": 2,
+            "minSegmentLength": 0,
+            "segmentControl": "SEGMENTED_FILES",
+            "streamInfResolution": "INCLUDE",
+            "timedMetadataId3Frame": "NONE",
+            "directoryStructure": "SINGLE_DIRECTORY",
+            "manifestDurationFormat": "INTEGER",
+            "timedMetadataId3Period": 10,
+            "captionLanguageSetting": "OMIT"
+          }
+        },
+        "outputs": [
+          {
+            "nameModifier": "240p",
+            "containerSettings": {
+              "container": "M3U8"
+            },
+            "videoDescription": {
+              "width": 426,
+              "height": 240,
+              "scalingBehavior": "DEFAULT",
+              "videoPreprocessors": {
+                "colorCorrector": {
+                  "brightness": 50,
+                  "contrast": 50,
+                  "gamma": 100,
+                  "hue": 0,
+                  "saturation": 100
+                }
+              },
+              "codecSettings": {
+                "codec": "H_264",
+                "h264Settings": {
+                  "rateControlMode": "QVBR",
+                  "qvbrSettings": {
+                    "qvbrQualityLevel": 8,
+                    "qvbrQualityLevelFineTune": 0.5
+                  },
+                  "maxBitrate": 300000,
+                  "qualityTuningLevel": "SINGLE_PASS",
+                  "gopSize": 2,
+                  "gopSizeUnits": "SECONDS",
+                  "interlaceMode": "PROGRESSIVE",
+                  "repeatPps": "DISABLED"
+                }
+              }
+            },
+            "audioDescriptions": [
+              {
+                "audioSourceName": "Audio Selector 1",
+                "codecSettings": {
+                  "codec": "AAC",
+                  "aacSettings": {
+                    "bitrate": 64000,
+                    "codingMode": "CODING_MODE_2_0",
+                    "sampleRate": 48000
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "nameModifier": "360p",
+            "containerSettings": {
+              "container": "M3U8"
+            },
+            "videoDescription": {
+              "width": 640,
+              "height": 360,
+              "scalingBehavior": "DEFAULT",
+              "videoPreprocessors": {
+                "colorCorrector": {
+                  "brightness": 50,
+                  "contrast": 50,
+                  "gamma": 100,
+                  "hue": 0,
+                  "saturation": 100
+                }
+              },
+              "codecSettings": {
+                "codec": "H_264",
+                "h264Settings": {
+                  "rateControlMode": "QVBR",
+                  "qvbrSettings": {
+                    "qvbrQualityLevel": 8,
+                    "qvbrQualityLevelFineTune": 0.5
+                  },
+                  "maxBitrate": 800000,
+                  "qualityTuningLevel": "SINGLE_PASS",
+                  "gopSize": 2,
+                  "gopSizeUnits": "SECONDS",
+                  "interlaceMode": "PROGRESSIVE",
+                  "repeatPps": "DISABLED"
+                }
+              }
+            },
+            "audioDescriptions": [
+              {
+                "audioSourceName": "Audio Selector 1",
+                "codecSettings": {
+                  "codec": "AAC",
+                  "aacSettings": {
+                    "bitrate": 128000,
+                    "codingMode": "CODING_MODE_2_0",
+                    "sampleRate": 48000
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "nameModifier": "720p",
+            "containerSettings": {
+              "container": "M3U8"
+            },
+            "videoDescription": {
+              "width": 1280,
+              "height": 720,
+              "scalingBehavior": "DEFAULT",
+              "videoPreprocessors": {
+                "colorCorrector": {
+                  "brightness": 50,
+                  "contrast": 50,
+                  "gamma": 100,
+                  "hue": 0,
+                  "saturation": 100
+                }
+              },
+              "codecSettings": {
+                "codec": "H_264",
+                "h264Settings": {
+                  "rateControlMode": "QVBR",
+                  "qvbrSettings": {
+                    "qvbrQualityLevel": 7,
+                    "qvbrQualityLevelFineTune": 0.5
+                  },
+                  "maxBitrate": 2500000,
+                  "qualityTuningLevel": "SINGLE_PASS",
+                  "gopSize": 2,
+                  "gopSizeUnits": "SECONDS",
+                  "interlaceMode": "PROGRESSIVE",
+                  "repeatPps": "DISABLED"
+                }
+              }
+            },
+            "audioDescriptions": [
+              {
+                "audioSourceName": "Audio Selector 1",
+                "codecSettings": {
+                  "codec": "AAC",
+                  "aacSettings": {
+                    "bitrate": 128000,
+                    "codingMode": "CODING_MODE_2_0",
+                    "sampleRate": 48000
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "nameModifier": "1080p",
+            "containerSettings": {
+              "container": "M3U8"
+            },
+            "videoDescription": {
+              "width": 1920,
+              "height": 1080,
+              "scalingBehavior": "DEFAULT",
+              "videoPreprocessors": {
+                "colorCorrector": {
+                  "brightness": 50,
+                  "contrast": 50,
+                  "gamma": 100,
+                  "hue": 0,
+                  "saturation": 100
+                }
+              },
+              "codecSettings": {
+                "codec": "H_264",
+                "h264Settings": {
+                  "rateControlMode": "QVBR",
+                  "qvbrSettings": {
+                    "qvbrQualityLevel": 7,
+                    "qvbrQualityLevelFineTune": 0.5
+                  },
+                  "maxBitrate": 5000000,
+                  "qualityTuningLevel": "SINGLE_PASS",
+                  "gopSize": 2,
+                  "gopSizeUnits": "SECONDS",
+                  "interlaceMode": "PROGRESSIVE",
+                  "repeatPps": "DISABLED"
+                }
+              }
+            },
+            "audioDescriptions": [
+              {
+                "audioSourceName": "Audio Selector 1",
+                "codecSettings": {
+                  "codec": "AAC",
+                  "aacSettings": {
+                    "bitrate": 128000,
+                    "codingMode": "CODING_MODE_2_0",
+                    "sampleRate": 48000
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "timecodeConfig": {
+      "source": "ZEROBASED"
+    }
+  },
+  "accelerationSettings": {
+    "mode": "DISABLED"
+  },
+  "statusUpdateInterval": "SECONDS_15",
+  "priority": 0
+}
