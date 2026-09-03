@@ -81,6 +81,20 @@ const contactLimiter = rateLimit({
 
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+// In production, serve the built React client (client/dist) from the same
+// origin as the API. Dev uses the Vite proxy instead, so this only activates
+// when NODE_ENV=production. Built by `npm run build:client` before start.
+if (process.env.NODE_ENV === 'production') {
+  const clientDist = path.join(__dirname, '..', 'client', 'dist');
+  app.use(express.static(clientDist));
+  // SPA fallback — any non-/api route hands control back to index.html so
+  // client-side routes (/, /projects/:id, /admin, ...) work on refresh/deep link.
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api')) return next();
+    res.sendFile(path.join(clientDist, 'index.html'));
+  });
+}
+
 app.get('/api/health', (req, res) => {
   res.status(200).json({
     status: 'online',
