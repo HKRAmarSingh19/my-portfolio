@@ -1,6 +1,6 @@
 ﻿import React from "react";
 import { Link } from "react-router-dom";
-import { Github, Linkedin, Instagram, Mail, ArrowUp, Lock, Code2 } from "lucide-react";
+import { Github, Linkedin, Mail, ArrowUp, Lock, Code2 } from "lucide-react";
 
 export const Footer = () => {
   const scrollToTop = () => window.scrollTo({ top: 0, behavior: "smooth" });
@@ -80,18 +80,13 @@ export const Footer = () => {
             </span>
             <div className="flex items-center gap-3">
               {[
-                { href: "https://codolio.com/profile/hkramar73", Icon: Code2, label: "Codolio" },
                 {
                   href: "https://www.linkedin.com/in/hkr-amar-singh-270246308/",
                   Icon: Linkedin,
                   label: "LinkedIn",
                 },
                 { href: "https://github.com/HKRAmarSingh19", Icon: Github, label: "GitHub" },
-                {
-                  href: "https://Instagram.com/hkramar73",
-                  Icon: Instagram,
-                  label: "Instagram",
-                },
+                { href: "https://codolio.com/profile/hkramar73", Icon: Code2, label: "Codolio" },
                 {
                   href: "https://mail.google.com/mail/?view=cm&fs=1&to=hkramarsingh@gmail.com",
                   Icon: Mail,

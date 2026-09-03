@@ -65,7 +65,7 @@ export const CommandPalette = ({ isOpen, onClose }) => {
     {
       label: 'View GitHub Profile',
       icon: ExternalLink,
-      action: () => { window.open('https://github.com', '_blank'); onClose(); },
+      action: () => { window.open('https://github.com/HKRAmarSingh19', '_blank'); onClose(); },
     },
   ];
 

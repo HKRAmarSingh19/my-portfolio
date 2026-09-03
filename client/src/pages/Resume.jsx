@@ -6,6 +6,7 @@ import {
   Mail,
   Github,
   Linkedin,
+  Code2,
   MapPin,
   Briefcase,
   GraduationCap,
@@ -108,29 +109,38 @@ export const Resume = () => {
 
               <div className="flex flex-wrap items-center gap-x-5 gap-y-2 pt-1 text-xs text-neutral-600 dark:text-neutral-400">
                 <a
-                  href="mailto:amar@example.com"
+                  href="mailto:hkramarsingh@gmail.com"
                   className="inline-flex items-center gap-1.5 transition-colors hover:text-indigo-500"
                 >
                   <Mail className="h-3.5 w-3.5" />
-                  <span>amar@example.com</span>
+                  <span>hkramarsingh@gmail.com</span>
                 </a>
                 <a
-                  href="https://github.com"
+                  href="https://github.com/HKRAmarSingh19"
                   target="_blank"
                   rel="noreferrer"
                   className="inline-flex items-center gap-1.5 transition-colors hover:text-indigo-500"
                 >
                   <Github className="h-3.5 w-3.5" />
-                  <span>github.com</span>
+                  <span>github.com/HKRAmarSingh19</span>
                 </a>
                 <a
-                  href="https://linkedin.com"
+                  href="https://www.linkedin.com/in/hkr-amar-singh-270246308/"
                   target="_blank"
                   rel="noreferrer"
                   className="inline-flex items-center gap-1.5 transition-colors hover:text-indigo-500"
                 >
                   <Linkedin className="h-3.5 w-3.5" />
-                  <span>linkedin.com</span>
+                  <span>hkr-amar-singh</span>
+                </a>
+                <a
+                  href="https://codolio.com/profile/hkramar73"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1.5 transition-colors hover:text-indigo-500"
+                >
+                  <Code2 className="h-3.5 w-3.5" />
+                  <span>codolio.com/hkramar73</span>
                 </a>
                 <span className="inline-flex items-center gap-1.5">
                   <MapPin className="h-3.5 w-3.5" />
