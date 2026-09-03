@@ -14,6 +14,7 @@ import Counter from '../components/common/Counter';
 import Marquee from '../components/common/Marquee';
 import Spotlight from '../components/common/Spotlight';
 import ProfilePortrait from '../components/common/ProfilePortrait';
+import { TechBadgeList } from '../components/common/TechBadge';
 
 export const Home = () => {
   const prefersReducedMotion = useReducedMotion();
@@ -75,23 +76,38 @@ export const Home = () => {
     <PageTransition>
       <SEO title="Software Engineer & System Architect" description="Minimal editorial portfolio of Amar Singh — Full-Stack MERN Software Engineer." />
 
-      {/* ── Hero ─────────────────────────────────────────────────────────── */}
-      <section className="relative pt-24 sm:pt-32 pb-16 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+      {/* Anchors the page the same way as the other routes: overflow-x-clip keeps
+          the fixed header's anchor-scroll working (overflow-hidden would trap it),
+          and the two blooms give the hero the same soft ambience as every page. */}
+      <div className="relative overflow-x-clip">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 top-0 h-[34rem] overflow-hidden"
+        >
+          <div className="absolute -top-32 left-0 h-[26rem] w-[26rem] rounded-full bg-indigo-500/[0.10] blur-3xl sm:left-16" />
+          <div className="absolute -top-20 right-0 h-[20rem] w-[20rem] rounded-full bg-violet-500/[0.08] blur-3xl sm:right-24" />
+        </div>
+
+        {/* ── Hero ─────────────────────────────────────────────────────── */}
+        <section className="relative pt-24 sm:pt-32 pb-16 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
           <div className="lg:col-span-7 space-y-6 relative z-10">
             <motion.div
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
-              className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full glass text-xs font-mono text-neutral-600 dark:text-neutral-300"
+              className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-indigo-500/20 bg-indigo-500/5 text-xs font-mono text-neutral-600 dark:text-neutral-300"
             >
+              {/* Green is reserved for live status across the site — one status dot here. */}
               <span className="relative flex h-2 w-2">
                 <span className="absolute inline-flex h-full w-full rounded-full bg-green-500 animate-pulse-ring" />
                 <span className="relative inline-flex h-2 w-2 rounded-full bg-green-500" />
               </span>
-              <span>B.Tech CSE ’28 <span className="relative inline-flex h-2 w-2 rounded-full bg-green-500" /> Backend Developer</span>
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-green-500" />
-              <span> AI Enthusiast</span>
+              <span className="whitespace-nowrap">B.Tech CSE ’28</span>
+              <span aria-hidden="true" className="text-neutral-300 dark:text-neutral-600">•</span>
+              <span className="whitespace-nowrap">Backend Developer</span>
+              <span aria-hidden="true" className="text-neutral-300 dark:text-neutral-600">•</span>
+              <span className="whitespace-nowrap">AI Enthusiast</span>
             </motion.div>
 
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-display font-bold tracking-tight text-neutral-900 dark:text-white leading-[1.05]">
@@ -295,15 +311,10 @@ export const Home = () => {
                         </p>
                       </div>
 
-                      <div className="pt-3 border-t border-neutral-200/70 dark:border-neutral-800/70 flex flex-wrap gap-1.5">
-                        {project.techStack?.slice(0, 4).map((tech) => (
-                          <span
-                            key={tech}
-                            className="text-[11px] font-mono bg-neutral-100 dark:bg-neutral-800/60 text-neutral-600 dark:text-neutral-400 px-2 py-0.5 rounded"
-                          >
-                            {tech}
-                          </span>
-                        ))}
+                      <div className="pt-3 border-t border-neutral-200/70 dark:border-neutral-800/70">
+                        {/* Logo chips — same component as the Projects page, so a
+                            technology looks identical wherever it appears. */}
+                        <TechBadgeList items={project.techStack} limit={4} />
                       </div>
                     </div>
                   </div>
@@ -462,6 +473,7 @@ export const Home = () => {
           </div>
         </Spotlight>
       </section>
+      </div>
     </PageTransition>
   );
 };
