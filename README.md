@@ -66,23 +66,22 @@ Configure `server/.env` (a pre-filled `.env.example` is committed as a template)
 PORT=5000
 NODE_ENV=development
 MONGODB_URI=mongodb://127.0.0.1:27017/mern_portfolio   # or a MongoDB Atlas connection string for permanent/cloud storage
-JWT_SECRET=supersecretjwtkey_replace_in_production_portfolio_2026
+JWT_SECRET=<your-own-strong-random-secret>
 JWT_EXPIRE=24h
-ADMIN_EMAIL=admin@portfolio.local
-ADMIN_PASSWORD=AdminPass123!
+# Password login is disabled — email/password are only used to seed the initial user record
 CLIENT_URL=http://localhost:5173
 ```
 
 For Google sign-in, add to `server/.env` (see [Google OAuth setup](#-google-oauth-setup-optional)):
 ```env
-GOOGLE_CLIENT_ID=...
-GOOGLE_CLIENT_SECRET=...
+GOOGLE_CLIENT_ID=<your-google-client-id>
+GOOGLE_CLIENT_SECRET=<your-google-client-secret>
 GOOGLE_REDIRECT_URI=http://localhost:5173
-ALLOWED_ADMIN_EMAILS=you@gmail.com, coadmin@gmail.com   # the ONLY accounts allowed to sign in (comma-separated)
+ALLOWED_ADMIN_EMAILS=<you@gmail.com>,<coadmin@gmail.com>   # the ONLY accounts allowed to sign in (comma-separated)
 ```
 And set the matching public id in `client/.env`:
 ```env
-VITE_GOOGLE_CLIENT_ID=...
+VITE_GOOGLE_CLIENT_ID=<your-google-client-id>
 ```
 
 ### 3. Seed the Database
@@ -144,8 +143,8 @@ Setup (one-time, in the [AWS Console](https://console.aws.amazon.com)):
    ```env
    AWS_ACCESS_KEY_ID=...
    AWS_SECRET_ACCESS_KEY=...
-   AWS_REGION=ap-southeast-1
-   AWS_BUCKET=portfolio-media-hkramar
+   AWS_REGION=<your-region>
+   AWS_BUCKET=<your-bucket-name>
    ```
    The public URL for each key follows the standard `https://<bucket>.s3.<region>.amazonaws.com/<key>` format.
 
@@ -166,7 +165,7 @@ Setup (one-time, in the [AWS Console](https://console.aws.amazon.com)):
 2. Register the job template — either via the Console, or programmatically with the included helper: `node server/scripts/create-mc-template.mjs` (creates `PortfolioHlsAbr`).
 3. Add to `server/.env`:
    ```env
-   AWS_MEDIACONVERT_ROLE_ARN=arn:aws:iam::<account>:role/MediaConvertForPortfolio
+   AWS_MEDIACONVERT_ROLE_ARN=arn:aws:iam::<account-id>:role/MediaConvertForPortfolio
    AWS_MEDIACONVERT_JOB_TEMPLATE=PortfolioHlsAbr
    ```
 
@@ -179,8 +178,8 @@ Both feeds live as **tabs inside the Gallery page** (`/gallery`) and are **opt-i
 ### Instagram
 Syncs your media via the official Meta Instagram Graph API (the account must be a **professional** Business/Creator profile). In `server/.env`:
 ```env
-INSTAGRAM_ACCESS_TOKEN=...        # long-lived (60-day, refreshable) access token
-INSTAGRAM_USER_ID=...             # your Instagram user id / handle
+INSTAGRAM_ACCESS_TOKEN=<your-long-lived-access-token>   # 60-day, refreshable
+INSTAGRAM_USER_ID=<your-instagram-user-id>
 INSTAGRAM_GRAPH_API_VERSION=v22.0
 ```
 Then trigger **Sync Now** from `/admin/instagram`. Each sync mirrors your posts (cursor-paginated, idempotent upserts).
