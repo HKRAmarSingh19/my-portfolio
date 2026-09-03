@@ -8,7 +8,7 @@ import {
   AlertCircle,
   Github,
   Linkedin,
-  Twitter,
+  Code2,
   MessageSquare,
   Clock,
   Globe,
@@ -21,16 +21,16 @@ import SEO from '../components/common/SEO';
 import PageHeader from '../components/common/PageHeader';
 
 const SOCIALS = [
-  { label: 'GitHub', href: 'https://github.com', icon: Github },
-  { label: 'LinkedIn', href: 'https://linkedin.com', icon: Linkedin },
-  { label: 'Twitter', href: 'https://twitter.com', icon: Twitter },
+  { label: 'LinkedIn', href: 'https://www.linkedin.com/in/hkr-amar-singh-270246308/', icon: Linkedin },
+  { label: 'GitHub', href: 'https://github.com/HKRAmarSingh19', icon: Github },
+  { label: 'Codolio', href: 'https://codolio.com/profile/hkramar73', icon: Code2 },
 ];
 
 const DETAILS = [
   {
     label: 'Email Address',
-    value: 'amar@example.com',
-    href: 'mailto:amar@example.com',
+    value: 'hkramarsingh@gmail.com',
+    href: 'mailto:hkramarsingh@gmail.com',
     icon: Mail,
     accent: 'from-indigo-500 to-blue-500',
   },
