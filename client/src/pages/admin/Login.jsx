@@ -91,7 +91,16 @@ export const Login = () => {
               await loginWithGoogle(credentialResponse.code, redirectUri);
               navigate('/admin');
             } catch (err) {
-              setError(err.response?.data?.message || 'Google sign-in failed. Please try again.');
+              // Show the server's real message (e.g. redirect_uri_mismatch,
+              // "not authorized", "not configured") plus the status, instead of
+              // a generic fallback that masks the actual failure.
+              const status = err.response?.status;
+              const detail = err.response?.data?.message || err.message;
+              setError(
+                detail
+                  ? `Google sign-in failed (${status || 'network'})${detail ? `: ${detail}` : ''}`
+                  : 'Google sign-in failed. Please try again.'
+              );
               setGoogleLoading(false);
             }
           })();
