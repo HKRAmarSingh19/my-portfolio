@@ -4,7 +4,12 @@ import axios from 'axios';
 // frontend is deployed separately (e.g. Vercel) and the API on Render, set
 // VITE_API_URL to the full API origin (e.g. https://portfolio-api.onrender.com).
 // The trailing /api is added here so all the route strings stay origin-relative.
-const API_BASE = import.meta.env.VITE_API_URL || '/';
+//
+// Normalise the base so it always ends in a single "/" — otherwise a
+// VITE_API_URL without a trailing slash (e.g. "...onrender.com") would bake in
+// "...onrender.comapi", which is not a resolvable host (ERR_NAME_NOT_RESOLVED).
+const rawBase = (import.meta.env.VITE_API_URL || '/').trim();
+const API_BASE = rawBase.endsWith('/') ? rawBase : `${rawBase}/`;
 
 const api = axios.create({
   baseURL: `${API_BASE}api`,
