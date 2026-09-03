@@ -1,7 +1,13 @@
 import axios from 'axios';
 
+// In dev (Vite proxy) the API lives on the same origin at /api. When the
+// frontend is deployed separately (e.g. Vercel) and the API on Render, set
+// VITE_API_URL to the full API origin (e.g. https://portfolio-api.onrender.com).
+// The trailing /api is added here so all the route strings stay origin-relative.
+const API_BASE = import.meta.env.VITE_API_URL || '/';
+
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: `${API_BASE}api`,
   headers: {
     'Content-Type': 'application/json',
   },

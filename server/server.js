@@ -81,10 +81,15 @@ const contactLimiter = rateLimit({
 
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// In production, serve the built React client (client/dist) from the same
-// origin as the API. Dev uses the Vite proxy instead, so this only activates
-// when NODE_ENV=production. Built by `npm run build:client` before start.
-if (process.env.NODE_ENV === 'production') {
+// In production, optionally serve the built React client (client/dist) from
+// the same origin as the API — e.g. a full-stack Render service. Dev uses the
+// Vite proxy instead, so this only activates when NODE_ENV=production.
+//
+// Built by `npm run build:client` before start. If client/dist is absent the
+// static-serving block is skipped, so the same deploy runs API-only (e.g. when
+// the frontend is hosted separately on Vercel while this instance serves just
+// the API). Enabled via SERVE_CLIENT=1 in the environment.
+if (process.env.NODE_ENV === 'production' && process.env.SERVE_CLIENT === '1') {
   const clientDist = path.join(__dirname, '..', 'client', 'dist');
   app.use(express.static(clientDist));
   // SPA fallback — any non-/api route hands control back to index.html so

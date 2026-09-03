@@ -1,20 +1,23 @@
-# Render Blueprint — a single Web Service runs the Express API and serves the
-# built React client from the same origin (server.js serves client/dist and
-# falls back to index.html for SPA routes in production, so there is one URL
-# and no CORS config to maintain).
+# Render Blueprint — the Express API, hosted on Render. The React frontend is
+# deployed separately on Vercel and calls this API origin via VITE_API_URL.
+# This service is API-ONLY: it does not build or serve the client (server.js
+# only activates its static-client block when SERVE_CLIENT=1).
 #
 # To deploy:
 #   1. Ensure this file is pushed to GitHub (repo: HKRAmarSingh19/my-portfolio).
 #   2. Render > New > Blueprint, connect that repo. It creates the service below.
-#   3. After creation, open the service > Environment and fill the three
-#      REQUIRED secret vars (they ship empty on purpose — never commit them):
+#   3. After creation, open the service > Environment and fill the vars:
+#      REQUIRED:
 #        MONGODB_URI          (your Atlas connection string)
 #        JWT_SECRET           (long random string, >= 16 chars — server refuses
 #                              to boot without it)
 #        ALLOWED_ADMIN_EMAILS (comma-separated Google emails allowed to sign in)
-#   4. Add optional vars if you use them: CLIENT_URL (your .onrender.com URL once assigned),
-#      GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET / GOOGLE_REDIRECT_URI, AWS_*, etc.
-#   5. Manual Deploy > Clear build cache & deploy. Check /api/health.
+#        CLIENT_URL           (the VERCEL frontend origin, e.g. https://xx.vercel.app —
+#                              used for CORS and as the Google OAuth redirect)
+#      OPTIONAL (only if you use the feature):
+#        GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET / GOOGLE_REDIRECT_URI, AWS_*,
+#        INSTAGRAM_*, LINKEDIN_VANITY_NAME.
+#   4. Manual Deploy > Clear build cache & deploy. Check /api/health.
 
 services:
   - type: web
@@ -24,27 +27,22 @@ services:
     plan: free
     healthCheckPath: /api/health
 
-    # Install root + server + client dependencies, then build the React client
-    # into client/dist (server.js serves it in production).
-    #
-    # The client build tool (vite, tailwind, ...) lives in client/DEVdependencies,
-    # which a plain `npm install --prefix client` would SKIP because Render runs
-    # the build under NODE_ENV=production. We add `--include=dev` to the client
-    # install so those build tools are present; the explicit chain (rather than
-    # the root install:all script) makes clear --include=dev only targets the
-    # client, where it is needed.
-    buildCommand: npm install && npm install --prefix server && npm install --prefix client --include=dev && npm run build
+    # This service is the API ONLY — the React frontend is hosted separately on
+    # Vercel and calls this origin (VITE_API_URL). So the build installs just the
+    # server (and the root workspace) and does NOT build client/dist. The server
+    # skips its static-client block because SERVE_CLIENT is not set.
+    buildCommand: npm install && npm install --prefix server
 
     # `npm start` -> `npm start --prefix server` -> node server.js.
     # Render sets NODE_ENV=production and PORT automatically.
     startCommand: npm start
 
     envVars:
-      # Production NODE_ENV enables the static-client + SPA fallback in server.js.
       - key: NODE_ENV
         value: production
       - key: JWT_EXPIRE
         value: 24h
+      # Do NOT set SERVE_CLIENT — this service is API-only (frontend is on Vercel).
 
       # ---- Secrets / Config — left empty on purpose so they are never
       # committed; you fill them in the dashboard (service > Environment)
