@@ -1,0 +1,85 @@
+# Render Blueprint — one Web Service runs the Express API and serves the
+# built React client from the same origin (see server.js: in production it
+# serves client/dist and falls back to index.html for SPA routes, so there is
+# a single URL and no CORS config to maintain).
+#
+# How to deploy:
+#   1. Push this file (and the rest of the repo) to GitHub.
+#   2. In Render: New > Blueprint, connect the repo. It provisions the service
+#      below and the `portfolio-env` environment group.
+#   3. Fill the secrets in the `portfolio-env` group (MONGODB_URI, JWT_SECRET,
+#      ALLOWED_ADMIN_EMAILS) before the first deploy finishes.
+#
+# Repo root (YAML `rootDir`) is "." because the server AND the client live at
+# the git root (server/ and client/ subfolders).
+
+databases: []
+
+services:
+  - type: web
+    name: portfolio-api
+    runtime: node
+    rootDir: .
+    plan: free
+    healthCheckPath: /api/health
+
+    # Install root + server + client dependencies, then build the React client
+    # into client/dist (server.js serves it in production).
+    buildCommand: npm run install:all && npm run build
+
+    # `npm start` -> `npm start --prefix server` -> node server.js.
+    # Render sets NODE_ENV=production and PORT automatically.
+    startCommand: npm start
+
+    envVars:
+      # Production NODE_ENV enables the static-client + SPA fallback in server.js.
+      - key: NODE_ENV
+        value: production
+      - key: JWT_EXPIRE
+        value: 24h
+      # The public URL of this service, used as the CORS origin / OAuth redirect
+      # for admin "Sign in with Google". Filled after first deploy, then redeploy.
+      - key: CLIENT_URL
+        fromService:
+          name: portfolio-api
+          type: web
+          property: url
+
+      # ---- Secrets — stored in the `portfolio-env` environment group, NOT in
+      # this repo file. Open the group in the Render dashboard to set them. ----
+      - key: MONGODB_URI
+        fromGroup: portfolio-env
+      - key: JWT_SECRET
+        fromGroup: portfolio-env
+      - key: ALLOWED_ADMIN_EMAILS
+        fromGroup: portfolio-env
+      # Optional — omit or leave blank if unused:
+      - key: GOOGLE_CLIENT_ID
+        fromGroup: portfolio-env
+      - key: GOOGLE_CLIENT_SECRET
+        fromGroup: portfolio-env
+      - key: GOOGLE_REDIRECT_URI
+        fromGroup: portfolio-env
+      - key: AWS_ACCESS_KEY_ID
+        fromGroup: portfolio-env
+      - key: AWS_SECRET_ACCESS_KEY
+        fromGroup: portfolio-env
+      - key: AWS_REGION
+        fromGroup: portfolio-env
+      - key: AWS_BUCKET
+        fromGroup: portfolio-env
+      - key: INSTAGRAM_ACCESS_TOKEN
+        fromGroup: portfolio-env
+      - key: INSTAGRAM_USER_ID
+        fromGroup: portfolio-env
+      - key: INSTAGRAM_GRAPH_API_VERSION
+        fromGroup: portfolio-env
+      - key: LINKEDIN_VANITY_NAME
+        fromGroup: portfolio-env
+
+# Shared secret group — values are entered in the Render dashboard, never here.
+# `sync: false` stops Render from overwriting your saved values on redeploys.
+envVarGroups:
+  - name: portfolio-env
+    sync: false
+    envVars: []
