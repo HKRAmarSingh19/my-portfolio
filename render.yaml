@@ -12,8 +12,8 @@
 #        JWT_SECRET           (long random string, >= 16 chars — server refuses
 #                              to boot without it)
 #        ALLOWED_ADMIN_EMAILS (comma-separated Google emails allowed to sign in)
-#   4. Add optional vars if you use them: GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET
-#      / GOOGLE_REDIRECT_URI, AWS_* (S3), INSTAGRAM_*, LINKEDIN_VANITY_NAME.
+#   4. Add optional vars if you use them: CLIENT_URL (your .onrender.com URL once assigned),
+#      GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET / GOOGLE_REDIRECT_URI, AWS_*, etc.
 #   5. Manual Deploy > Clear build cache & deploy. Check /api/health.
 
 services:
@@ -39,15 +39,7 @@ services:
       - key: JWT_EXPIRE
         value: 24h
 
-      # Public URL of this service — the CORS origin and the Google OAuth
-      # redirect target for admin "Sign in with Google".
-      - key: CLIENT_URL
-        fromService:
-          name: portfolio-api
-          type: web
-          property: url
-
-      # ---- REQUIRED secrets. Left empty on purpose so they are never
+      # ---- Secrets / Config — left empty on purpose so they are never
       # committed; you fill them in the dashboard (service > Environment)
       # before the first successful deploy. `sync: false` stops Render from
       # overwriting the values you enter.
@@ -56,6 +48,8 @@ services:
       - key: JWT_SECRET
         sync: false
       - key: ALLOWED_ADMIN_EMAILS
+        sync: false
+      - key: CLIENT_URL
         sync: false
 
       # ---- Optional secrets (leave empty unless you use the feature).
