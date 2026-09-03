@@ -26,7 +26,14 @@ services:
 
     # Install root + server + client dependencies, then build the React client
     # into client/dist (server.js serves it in production).
-    buildCommand: npm run install:all && npm run build
+    #
+    # The client build tool (vite, tailwind, ...) lives in client/DEVdependencies,
+    # which a plain `npm install --prefix client` would SKIP because Render runs
+    # the build under NODE_ENV=production. We add `--include=dev` to the client
+    # install so those build tools are present; the explicit chain (rather than
+    # the root install:all script) makes clear --include=dev only targets the
+    # client, where it is needed.
+    buildCommand: npm install && npm install --prefix server && npm install --prefix client --include=dev && npm run build
 
     # `npm start` -> `npm start --prefix server` -> node server.js.
     # Render sets NODE_ENV=production and PORT automatically.
