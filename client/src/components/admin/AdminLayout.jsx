@@ -16,6 +16,7 @@ import {
   Images,
   Instagram,
   Linkedin,
+  BarChart3,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -30,6 +31,7 @@ const adminNavItems = [
   { name: 'LinkedIn', href: '/admin/linkedin', icon: Linkedin },
   { name: 'Experience / Resume', href: '/admin/experience', icon: Briefcase },
   { name: 'Messages', href: '/admin/messages', icon: Mail },
+  { name: 'Analytics', href: '/admin/analytics', icon: BarChart3 },
 ];
 
 export const AdminLayout = () => {

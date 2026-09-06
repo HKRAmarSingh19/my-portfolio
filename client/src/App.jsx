@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Routes, Route, useLocation } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
+
+import { trackPageView } from './utils/tracker';
 
 import Navbar from './components/layout/Navbar';
 import Footer from './components/layout/Footer';
@@ -35,6 +37,7 @@ import ManageGallery from './pages/admin/ManageGallery';
 import ManageInstagram from './pages/admin/ManageInstagram';
 import ManageLinkedIn from './pages/admin/ManageLinkedIn';
 import Messages from './pages/admin/Messages';
+import Analytics from './pages/admin/Analytics';
 
 
 export function App() {
@@ -44,6 +47,17 @@ export function App() {
   const isAdminRoute = location.pathname.startsWith('/admin');
 
   const [showIntro, setShowIntro] = useState(true);
+
+  // Fire a pageview on every client-side route change. Guards:
+  //  - skip /admin* (admin traffic shouldn't pollute public analytics, and the
+  //    admin calls its own protected stats)
+  //  - skip while the Intro overlay is showing (the URL is already '/', but the
+  //    page is not yet meaningful — don't double-count the home visit)
+  useEffect(() => {
+    if (isAdminRoute) return;
+    if (showIntro && location.pathname === '/') return;
+    trackPageView(location.pathname);
+  }, [location.pathname, isAdminRoute, showIntro]);
 
 
   return (
@@ -96,6 +110,7 @@ export function App() {
                 <Route path="instagram" element={<ManageInstagram />} />
                 <Route path="linkedin" element={<ManageLinkedIn />} />
                 <Route path="messages" element={<Messages />} />
+                <Route path="analytics" element={<Analytics />} />
               </Route>
 
               <Route path="*" element={<NotFound />} />

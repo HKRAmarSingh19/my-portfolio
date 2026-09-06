@@ -15,3 +15,17 @@ export const loginLimiter = rateLimit({
     message: 'Too many login attempts from this IP. Please try again in 15 minutes.',
   },
 });
+
+// Analytics pageview ingestion limiter: caps how many pageviews a single IP can
+// push per minute so a hammered/replayed sendBeacon cannot bloat the collection.
+// 60/min is generously above a human clicking around but stops scripted floods.
+export const trackLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 60,
+  standardHeaders: false,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: 'Too many requests. Please slow down.',
+  },
+});
