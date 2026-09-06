@@ -22,6 +22,7 @@ import profileRoutes from './routes/profileRoutes.js';
 import galleryRoutes from './routes/galleryRoutes.js';
 import instagramRoutes from './routes/instagramRoutes.js';
 import linkedInRoutes from './routes/linkedInRoutes.js';
+import analyticsRoutes from './routes/analyticsRoutes.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -121,6 +122,7 @@ app.use('/api/profile', profileRoutes);
 app.use('/api/gallery', galleryRoutes);
 app.use('/api/instagram', instagramRoutes);
 app.use('/api/linkedin', linkedInRoutes);
+app.use('/api/analytics', analyticsRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

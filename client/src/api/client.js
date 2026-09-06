@@ -113,6 +113,11 @@ export const statsApi = {
   getStats: () => api.get('/stats'),
 };
 
+export const analyticsApi = {
+  // Private — admin-only overview of visitor analytics. Range: 7d | 30d | 90d | all.
+  getOverview: (range = '7d') => api.get('/analytics/overview', { params: { range } }),
+};
+
 export const profileApi = {
   // Public read for the homepage hero.
   get: () => api.get('/profile'),

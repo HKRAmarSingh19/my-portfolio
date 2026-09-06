@@ -102,7 +102,7 @@ export const updateDetails = async (req, res, next) => {
  */
 export const googleLogin = async (req, res, next) => {
   try {
-    const { code, redirectUri } = req.body;
+    const { code } = req.body;
     const { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET } = process.env;
 
     if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
@@ -113,6 +113,16 @@ export const googleLogin = async (req, res, next) => {
     }
 
     // 1. Exchange the authorization code for tokens using the server-side secret.
+    //
+    // For the token exchange, `redirect_uri` MUST match what was used when the
+    // authorization code was created. GIS in popup mode uses `postmessage`, not
+    // a real URL — but if the server has an explicit GOOGLE_REDIRECT_URI set,
+    // prefer that (it covers webhook/server-side flows). Fall back to
+    // postmessage for the standard popup case, and finally to whatever the
+    // client sent (legacy compatibility).
+    const exchangeRedirectUri =
+      process.env.GOOGLE_REDIRECT_URI || 'postmessage';
+
     const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -120,7 +130,7 @@ export const googleLogin = async (req, res, next) => {
         code,
         client_id: GOOGLE_CLIENT_ID,
         client_secret: GOOGLE_CLIENT_SECRET,
-        redirect_uri: redirectUri,
+        redirect_uri: exchangeRedirectUri,
         grant_type: 'authorization_code',
       }),
     });
