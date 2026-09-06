@@ -2,8 +2,8 @@
 
 export const SEO = ({ title, description }) => {
   useEffect(() => {
-    const defaultTitle = 'Amar Singh — Full-Stack Software Engineer';
-    document.title = title ? `${title} | Amar Singh` : defaultTitle;
+    const defaultTitle = 'Hkr Amar Singh - Full-Stack Developer';
+    document.title = title ? `${title} | Hkr Amar Singh` : defaultTitle;
     if (description) {
       let meta = document.querySelector('meta[name="description"]');
       if (meta) meta.setAttribute('content', description);
