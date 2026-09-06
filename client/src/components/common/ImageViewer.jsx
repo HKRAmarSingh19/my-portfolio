@@ -119,6 +119,15 @@ export const ImageViewer = ({
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
+  // Touch pinch-zoom state: while two fingers are on the media we track the
+  // starting distance / midpoint so the zoom stays anchored to the pinch, and
+  // panning with two fingers moves the photo across the screen.
+  const [isPinching, setIsPinching] = useState(false);
+  const [pinchStartDist, setPinchStartDist] = useState(0);
+  const [pinchStartZoom, setPinchStartZoom] = useState(1);
+  // Single-finger touch panning is only active once zoomed in (>1) — at 1x a
+  // single tap/flick should do nothing to the media (matches drag behavior).
+  const touchPanRef = useRef(null);
   // Fullscreen state mirrors the real document state (so Escape to exit keeps the
   // icon in sync), tracked via the fullscreenchange event.
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -464,6 +473,74 @@ export const ImageViewer = ({
     e.currentTarget.releasePointerCapture?.(e.pointerId);
   };
 
+  // ── Touch (pinch-zoom + pan) ─────────────────────────────────────────────
+  // Google-Maps-style touch: two-finger pinch zooms anchored to the pinch
+  // midpoint, two-finger drag pans. A single finger pans only when zoomed in.
+  // Implemented with React pointer events (unified mouse/touch/pen) so it shares
+  // the same math as the mouse path.
+  const distance = (a, b) => Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+  const midpoint = (a, b) => ({ x: (a.clientX + b.clientX) / 2, y: (a.clientY + b.clientY) / 2 });
+
+  const onTouchPanDown = (e) => {
+    // Two fingers = starting a pinch (or pinch-drag).
+    if (e.touches.length === 2) {
+      setIsPinching(true);
+      setPinchStartDist(distance(e.touches[0], e.touches[1]));
+      setPinchStartZoom(zoomRef.current);
+      touchPanRef.current = midpoint(e.touches[0], e.touches[1]);
+      return;
+    }
+    // One finger: only pan when already zoomed in (nothing to move at 1x).
+    if (e.touches.length === 1 && zoomRef.current > 1) {
+      touchPanRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    }
+  };
+  const onTouchPanMove = (e) => {
+    if (e.touches.length === 2 && isPinching) {
+      const mid = midpoint(e.touches[0], e.touches[1]);
+      const dist = distance(e.touches[0], e.touches[1]);
+      const z0 = pinchStartZoom;
+      const f = dist / pinchStartDist;
+      const next = Math.min(ZOOM_MAX, Math.max(1, +(z0 * f).toFixed(2)));
+
+      // Keep the pinch midpoint fixed on screen while zooming, same math as the
+      // wheel handler — anchored to the two fingers' center.
+      const cr = imageWrapRef.current.getBoundingClientRect();
+      const Cx = cr.left + cr.width / 2;
+      const Cy = cr.top + cr.height / 2;
+      const px = mid.x;
+      const py = mid.y;
+      const t = panRef.current;
+      const fz = next / z0;
+      setZoom(next);
+      setPan({
+        x: px - Cx - fz * (px - Cx - t.x),
+        y: py - Cy - fz * (py - Cy - t.y),
+      });
+      // Track the midpoint so a two-finger drag pans too.
+      touchPanRef.current = mid;
+      return;
+    }
+    if (e.touches.length === 1 && touchPanRef.current && zoomRef.current > 1) {
+      const t = touchPanRef.current;
+      setPan((p) => ({
+        x: p.x + (e.touches[0].clientX - t.x) * PAN_SPEED,
+        y: p.y + (e.touches[0].clientY - t.y) * PAN_SPEED,
+      }));
+      touchPanRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    }
+  };
+  const onTouchPanEnd = (e) => {
+    // When one finger lifts, stop the pinch but keep zoom state. If zoomed out
+    // to 1x, snap the pan back to center (nothing should stay shifted).
+    if (e.touches.length < 2) setIsPinching(false);
+    if (zoomRef.current <= 1) {
+      setZoom(1);
+      setPan({ x: 0, y: 0 });
+    }
+    touchPanRef.current = null;
+  };
+
   // Download the currently shown media. Fetches as a blob so it works for both
   // same-origin /uploads files and external hosts; falls back to opening it.
   const downloadImage = async (url, name) => {
@@ -505,6 +582,10 @@ export const ImageViewer = ({
         onPointerMove={onPanMove}
         onPointerUp={onPanUp}
         onPointerCancel={onPanUp}
+        onTouchStart={onTouchPanDown}
+        onTouchMove={onTouchPanMove}
+        onTouchEnd={onTouchPanEnd}
+        onTouchCancel={onTouchPanEnd}
         className={`relative touch-none will-change-transform ${
           isFullscreen
             // Fullscreen: the wrapper fills the screen and centers the media,

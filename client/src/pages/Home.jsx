@@ -1,9 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { motion, useReducedMotion } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowRight, ArrowUpRight, Sparkles, Github } from 'lucide-react';
-import { projectsApi, blogApi, skillsApi, profileApi } from '../api/client';
+import { ArrowRight, ArrowUpRight, Sparkles, Github, Images, X, ArrowLeftRight } from 'lucide-react';
+import { projectsApi, blogApi, skillsApi, profileApi, galleryApi } from '../api/client';
 import PageTransition from '../components/layout/PageTransition';
 import SEO from '../components/common/SEO';
 import Scene3D from '../components/three/Scene3D';
@@ -14,15 +14,18 @@ import Counter from '../components/common/Counter';
 import Marquee from '../components/common/Marquee';
 import Spotlight from '../components/common/Spotlight';
 import ProfilePortrait from '../components/common/ProfilePortrait';
+import ImageViewer from '../components/common/ImageViewer';
 import { TechBadgeList } from '../components/common/TechBadge';
 import { resolveTechIcon } from '../components/common/techIcons';
 
 export const Home = () => {
   const prefersReducedMotion = useReducedMotion();
 
+  // Full project list: drives the "Projects Shipped" counter (total, not
+  // featured-only). Featured section filters in-memory below.
   const { data: projectsData, isLoading: projectsLoading } = useQuery({
-    queryKey: ['featuredProjects'],
-    queryFn: () => projectsApi.getAll({ featured: true }),
+    queryKey: ['projects'],
+    queryFn: () => projectsApi.getAll({}),
   });
 
   const { data: blogData, isLoading: blogLoading } = useQuery({
@@ -35,6 +38,12 @@ export const Home = () => {
     queryFn: () => skillsApi.getAll({}),
   });
 
+  // Featured images for the home gallery strip — full list isn't needed.
+  const { data: galleryData, isLoading: galleryLoading } = useQuery({
+    queryKey: ['homeFeaturedGallery'],
+    queryFn: () => galleryApi.getAll({ featured: true }),
+  });
+
   // Portrait + name are admin-editable, so they come from the API rather than
   // being hard-coded here. Falls back to the bundled defaults on failure.
   const { data: profileData } = useQuery({
@@ -44,10 +53,47 @@ export const Home = () => {
 
   const profile = profileData?.data?.data || {};
 
-  const featuredProjects = projectsData?.data?.data?.slice(0, 3) || [];
+  const featuredProjects =
+    projectsData?.data?.data?.filter((p) => p.featured).slice(0, 3) || [];
   const recentPosts = blogData?.data?.data?.slice(0, 2) || [];
+  const featuredGallery = (galleryData?.data?.data || []).slice(0, 4);
   const allSkills = skillsData?.data?.data || [];
   const topSkills = allSkills.slice(0, 8);
+
+  // In-place fullscreen viewer for the featured gallery tiles. `lightboxIndex`
+  // is the index into `featuredGallery` of the tile being examined, or null
+  // when closed. `lbImageIdx` is the photo within that item's set.
+  const [lightboxIndex, setLightboxIndex] = useState(null);
+  const [lbImageIdx, setLbImageIdx] = useState(0);
+
+  const activeGalleryItem = lightboxIndex !== null ? featuredGallery[lightboxIndex] : null;
+  const activeGalleryImages = activeGalleryItem
+    ? Array.from(
+        new Set([
+          activeGalleryItem.image,
+          ...(activeGalleryItem.images || []),
+          activeGalleryItem.video,
+        ].filter(Boolean))
+      )
+    : [];
+
+  const openGalleryLightbox = (item, tileIdx = 0) => {
+    setLbImageIdx(Number.isFinite(tileIdx) && tileIdx >= 0 ? tileIdx : 0);
+    setLightboxIndex(featuredGallery.indexOf(item));
+  };
+  const closeGalleryLightbox = () => setLightboxIndex(null);
+  // Wrapped so a stray event object is never passed to the setter (React 18+
+  // coerce issue). Always receives a plain number from ImageViewer.
+  const moveGalleryImage = (next) => {
+    if (typeof next === 'number' && Number.isFinite(next)) setLbImageIdx(next);
+  };
+  // Prevent the page behind from scrolling while the lightbox is open.
+  React.useEffect(() => {
+    if (lightboxIndex === null) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, [lightboxIndex]);
   const skillNames = allSkills.map((skill) => skill.name);
 
   const stats = [
@@ -330,6 +376,90 @@ export const Home = () => {
         )}
       </section>
 
+      {/* ── Featured gallery ─────────────────────────────────────────────── */}
+      {featuredGallery.length > 0 && (
+        <section className="py-16 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 border-t border-neutral-200/70 dark:border-neutral-800/70">
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-10 gap-4">
+            <div>
+              <span className="font-mono text-xs uppercase tracking-widest text-indigo-600 dark:text-indigo-400">Visual Archive</span>
+              <h2 className="text-2xl sm:text-4xl font-display font-bold text-neutral-900 dark:text-white mt-1 tracking-tight">
+                <AnimatedText text="Featured Gallery" inView />
+              </h2>
+            </div>
+            <Link
+              to="/gallery"
+              className="link-underline inline-flex items-center gap-1.5 text-sm font-medium text-neutral-600 dark:text-neutral-400 hover:text-indigo-500 transition-colors group"
+            >
+              <span>View full gallery</span>
+              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            </Link>
+          </div>
+
+          {galleryLoading ? (
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              {[1, 2, 3, 4].map((n) => (
+                <div key={n} className="aspect-square rounded-2xl bg-neutral-100 dark:bg-neutral-900 animate-pulse" />
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              {featuredGallery.map((item, index) => {
+                const media = item.video
+                  ? [item.image, item.video].filter(Boolean)
+                  : [item.image, ...(item.images || [])].filter(Boolean);
+                const poster = item.image || item.video;
+                return (
+                  <motion.div
+                    key={item._id || index}
+                    initial={{ opacity: 0, y: 24 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true, margin: '-50px' }}
+                    transition={{ duration: 0.55, delay: index * 0.1, ease: [0.22, 1, 0.36, 1] }}
+                    onClick={() => openGalleryLightbox(item)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        openGalleryLightbox(item);
+                      }
+                    }}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Open ${item.title} full screen`}
+                    className="group relative block cursor-pointer overflow-hidden rounded-2xl glass aspect-square hover:border-indigo-500/40 hover:shadow-lift transition-all duration-300"
+                  >
+                    {poster ? (
+                      <img
+                        src={poster}
+                        alt={item.title}
+                        loading="lazy"
+                        className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
+                      />
+                    ) : null}
+                    <div className="absolute inset-0 bg-gradient-to-t from-neutral-950/80 via-neutral-950/10 to-transparent" />
+                    {media.length > 1 && (
+                      <span className="absolute left-3 top-3 z-10 rounded-full bg-neutral-950/70 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-white backdrop-blur">
+                        +{media.length - 1} media
+                      </span>
+                    )}
+                    <span className="absolute bottom-3 left-3 text-[11px] font-mono uppercase tracking-wider text-indigo-300 bg-neutral-950/70 backdrop-blur px-2 py-0.5 rounded border border-indigo-500/30">
+                      {item.category || 'Personal'}
+                    </span>
+                    <span className="absolute bottom-3 right-3 text-xs font-display font-bold text-white drop-shadow">
+                      {item.title}
+                    </span>
+                    {/* Expand affordance — hints the tile opens the fullscreen
+                        viewer on click (and touch does the same). */}
+                    <span className="absolute right-3 top-3 grid h-8 w-8 place-items-center rounded-full bg-neutral-950/60 text-white opacity-0 backdrop-blur transition-opacity duration-200 group-hover:opacity-100">
+                      {item.video ? <ArrowLeftRight className="h-3.5 w-3.5" /> : <Images className="h-3.5 w-3.5" />}
+                    </span>
+                  </motion.div>
+                );
+              })}
+            </div>
+          )}
+        </section>
+      )}
+
       {/* ── Capabilities ─────────────────────────────────────────────────── */}
       <section className="py-16 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 border-t border-neutral-200/70 dark:border-neutral-800/70">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
@@ -502,6 +632,59 @@ export const Home = () => {
           </div>
         </Spotlight>
       </section>
+
+      {/* ── Featured-gallery fullscreen viewer ─────────────────────────────
+          Opened by tapping/clicking a gallery tile. Same Google-Maps style
+          ImageViewer as the /gallery lightbox: wheel/pinch zoom, drag pan,
+          prev/next within the active item, fullscreen + download. Clicking the
+          backdrop (or the X) closes it. */}
+      <AnimatePresence>
+      {activeGalleryItem && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
+          onWheel={(e) => e.preventDefault()}
+          onTouchMove={(e) => e.preventDefault()}
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/75 p-4 backdrop-blur-md sm:p-10"
+          onClick={closeGalleryLightbox}
+        >
+          <button
+            onClick={closeGalleryLightbox}
+            aria-label="Close fullscreen view"
+            className="absolute right-4 top-4 z-10 grid h-10 w-10 place-items-center rounded-full bg-white/10 text-neutral-200 transition-colors hover:bg-white/20 hover:text-white"
+          >
+            <X className="h-5 w-5" />
+          </button>
+          <div
+            className="m-auto flex flex-col items-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <ImageViewer
+              images={activeGalleryImages}
+              index={lbImageIdx}
+              onIndexChange={moveGalleryImage}
+              itemId={activeGalleryItem._id}
+              itemTitle={activeGalleryItem.title}
+              title={activeGalleryItem.title}
+              caption={activeGalleryItem.description}
+              videoHls={activeGalleryItem.videoHls}
+              onPrevSet={() => {
+                setLbImageIdx(0);
+                setLightboxIndex(
+                  (i) => (i - 1 + featuredGallery.length) % featuredGallery.length
+                );
+              }}
+              onNextSet={() => {
+                setLbImageIdx(0);
+                setLightboxIndex((i) => (i + 1) % featuredGallery.length);
+              }}
+            />
+          </div>
+        </motion.div>
+      )}
+      </AnimatePresence>
       </div>
     </PageTransition>
   );

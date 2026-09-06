@@ -17,7 +17,7 @@ const Intro = ({ onComplete }) => {
           return 100;
         }
 
-        return prev + 1;
+        return prev + 4;
       });
     }, 30);
 
