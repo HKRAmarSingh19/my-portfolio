@@ -35,6 +35,15 @@
       property="og:description"
       content="Hkr Amar Singh — Full-Stack Developer building clean, scalable MERN applications."
     />
+    <meta property="og:url" content="https://hkramarsingh.in/" />
+    <meta property="og:site_name" content="Hkr Amar Singh" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="Hkr Amar Singh - Full-Stack Developer" />
+    <meta
+      name="twitter:description"
+      content="Hkr Amar Singh — Full-Stack Developer building clean, scalable MERN applications."
+    />
+    <link rel="canonical" href="https://hkramarsingh.in/" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -45,22 +54,58 @@
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
-      "@type": "Person",
-      "name": "Hkr Amar Singh",
-      "alternateName": ["hkr", "hkramarsingh", "HKR Amar Singh"],
-      "email": "mailto:hkramarsingh@gmail.com",
-      "jobTitle": "Full-Stack Developer",
-      "url": "https://hkramarsingh.in",
-      "sameAs": [
-        "https://github.com/HKRAmarSingh19",
-        "https://www.linkedin.com/in/hkr-amar-singh-270246308/",
-        "https://codolio.com/profile/hkramar73"
+      "@graph": [
+        {
+          "@type": "Person",
+          "@id": "https://hkramarsingh.in/#person",
+          "name": "Hkr Amar Singh",
+          "alternateName": ["hkr", "hkramarsingh", "HKR Amar Singh"],
+          "email": "mailto:hkramarsingh@gmail.com",
+          "jobTitle": "Full-Stack Developer",
+          "url": "https://hkramarsingh.in",
+          "sameAs": [
+            "https://github.com/HKRAmarSingh19",
+            "https://www.linkedin.com/in/hkr-amar-singh-270246308/",
+            "https://codolio.com/profile/hkramar73"
+          ]
+        },
+        {
+          "@type": "WebSite",
+          "@id": "https://hkramarsingh.in/#website",
+          "url": "https://hkramarsingh.in",
+          "name": "Hkr Amar Singh - Full-Stack Developer",
+          "description": "Minimal editorial portfolio of Hkr Amar Singh — full-stack MERN developer, engineering blog, and structured resume.",
+          "inLanguage": "en",
+          "publisher": { "@id": "https://hkramarsingh.in/#person" }
+        }
       ]
     }
     </script>
   </head>
   <body>
     <div id="root"></div>
+
+    <!-- Accessible, SEO-friendly fallback for crawlers/browsers without JS.
+         The React app replaces this entirely on load. -->
+    <noscript>
+      <main style="max-width: 46rem; margin: 0 auto; padding: 3rem 1.5rem; font-family: -apple-system, 'Segoe UI', Arial, sans-serif; color: #111; background: #fafafa;">
+        <h1>Hkr Amar Singh - Full-Stack Developer</h1>
+        <p>I'm a full-stack developer building clean, scalable MERN applications with React, Node.js, Express, and MongoDB. Minimal editorial portfolio featuring engineering projects, an AI-focused engineering blog, and a structured resume.</p>
+        <nav aria-label="Primary">
+          <ul style="list-style: none; display: flex; flex-wrap: wrap; gap: 1rem; padding: 0;">
+            <li><a href="/about">About</a></li>
+            <li><a href="/projects">Projects</a></li>
+            <li><a href="/skills">Skills</a></li>
+            <li><a href="/gallery">Gallery</a></li>
+            <li><a href="/blog">Blog</a></li>
+            <li><a href="/resume">Resume</a></li>
+            <li><a href="/contact">Contact</a></li>
+          </ul>
+        </nav>
+        <p>Find me on <a href="https://github.com/HKRAmarSingh19" rel="me">GitHub</a>, <a href="https://www.linkedin.com/in/hkr-amar-singh-270246308/" rel="me">LinkedIn</a>, and <a href="https://codolio.com/profile/hkramar73" rel="me">Codolio</a>.</p>
+      </main>
+    </noscript>
+
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
