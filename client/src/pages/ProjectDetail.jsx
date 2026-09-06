@@ -9,7 +9,7 @@ import rehypeHighlight from 'rehype-highlight';
 import { projectsApi } from '../api/client';
 import PageTransition from '../components/layout/PageTransition';
 import SEO from '../components/common/SEO';
-import { TechBadgeList } from '../components/common/TechBadge';
+import PageHeroBand from '../components/common/PageHeroBand';import { TechBadgeList } from '../components/common/TechBadge';
 
 export const ProjectDetail = () => {
   const { slug } = useParams();
@@ -71,13 +71,7 @@ export const ProjectDetail = () => {
 
       <article className="relative overflow-x-clip pt-28 sm:pt-36 pb-24 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
         {/* Anchors the top of the page, matching the other public routes. */}
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-x-0 top-0 h-[26rem] overflow-hidden"
-        >
-          <div className="absolute -top-32 left-0 h-[24rem] w-[24rem] rounded-full bg-indigo-500/[0.10] blur-3xl sm:left-10" />
-          <div className="absolute -top-20 right-0 h-[18rem] w-[18rem] rounded-full bg-violet-500/[0.08] blur-3xl" />
-        </div>
+        <PageHeroBand />
 
         <div className="relative flex items-center justify-between">
           <button

@@ -8,35 +8,44 @@ import {
   Linkedin,
   Code2,
   MapPin,
+  Phone,
   Briefcase,
   GraduationCap,
   Award,
   BadgeCheck,
   ExternalLink,
   FileText,
+  UserRound,
+  FolderGit2,
+  Users,
 } from 'lucide-react';
 import { experienceApi, skillsApi } from '../api/client';
 import PageTransition from '../components/layout/PageTransition';
 import SEO from '../components/common/SEO';
 import PageHeader from '../components/common/PageHeader';
+import PageHeroBand from '../components/common/PageHeroBand';
 import { TechBadgeList } from '../components/common/TechBadge';
+import { SITE } from '../constants/site';
+import { EXPERIENCE_TYPES } from '../constants/experienceTypes';
 
-// Section order and presentation per Experience `type` enum.
-const SECTIONS = [
-  { type: 'work', title: 'Professional Experience', icon: Briefcase },
-  { type: 'education', title: 'Education', icon: GraduationCap },
-  { type: 'certification', title: 'Certifications', icon: BadgeCheck },
-  { type: 'award', title: 'Awards & Recognition', icon: Award },
-];
+// Presentation metadata (title + icon) per entry type, in the canonical section
+// order. The resume is fully data-driven: a section renders only if at least one
+// entry of that type exists. `award` (legacy) is normalised into `achievement`.
+const TYPE_META = {
+  header: { title: 'Header / Contact', icon: UserRound },
+  summary: { title: 'Professional Summary', icon: FileText },
+  education: { title: 'Education', icon: GraduationCap },
+  skills: { title: 'Technical Skills', icon: BadgeCheck },
+  project: { title: 'Projects', icon: FolderGit2 },
+  work: { title: 'Professional Experience', icon: Briefcase },
+  achievement: { title: 'Achievements', icon: Award },
+  certification: { title: 'Certifications', icon: BadgeCheck },
+  coding: { title: 'Coding Profiles', icon: Code2 },
+  leadership: { title: 'Leadership / Positions of Responsibility', icon: Users },
+};
 
-const CATEGORY_ORDER = [
-  'Frontend',
-  'Backend',
-  'Database',
-  'DevOps & Cloud',
-  'Languages',
-  'Tools & Workflow',
-];
+// Legacy `award` rows render inside the Achievements section too.
+const LEGACY_ALIAS = { award: 'achievement' };
 
 export const Resume = () => {
   const { data: experienceData, isLoading: experienceLoading } = useQuery({
@@ -44,25 +53,65 @@ export const Resume = () => {
     queryFn: () => experienceApi.getAll({}),
   });
 
+  // Technical Skills can come from a `skills` resume entry (items[]). If none
+  // exists yet, fall back to the legacy grouped categories from the skills
+  // collection so existing content isn't lost.
   const { data: skillsData } = useQuery({
     queryKey: ['skills', 'grouped'],
     queryFn: () => skillsApi.getAll({ grouped: 'true' }),
+    enabled: true,
   });
 
   const experiences = experienceData?.data?.data || [];
   const groupedSkills = skillsData?.data?.data || {};
 
-  const skillCategories = [
-    ...CATEGORY_ORDER.filter((c) => groupedSkills[c]?.length),
-    ...Object.keys(groupedSkills).filter(
-      (c) => !CATEGORY_ORDER.includes(c) && groupedSkills[c]?.length
-    ),
-  ];
+  // Normalise legacy `award` under `achievement`, then group rows per type.
+  const rowsByType = experiences.reduce((acc, item) => {
+    const key = LEGACY_ALIAS[item.type] || item.type;
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(item);
+    return acc;
+  }, {});
 
-  const populatedSections = SECTIONS.map((section) => ({
-    ...section,
-    items: experiences.filter((item) => item.type === section.type),
-  })).filter((section) => section.items.length > 0);
+  const headerEntry = rowsByType.header?.[0];
+  const summaryEntry = rowsByType.summary?.[0];
+  const skillsEntries = rowsByType.skills || [];
+  const hasSkillsEntries = skillsEntries.length > 0;
+
+  // Identity, driven by the `header` entry; falls back to SITE constants only
+  // when the admin hasn't added one yet. `role` falls back to the profile
+  // headline only when there's no header entry at all (so an empty role on a
+  // header entry doesn't double-print the name).
+  const name = headerEntry?.title || SITE.name;
+  const role = headerEntry?.role || 'Full-Stack Software Engineer';
+  const contact = headerEntry?.contact || {};
+  // Professional Summary is entirely user-defined: nothing renders until the
+  // admin adds a `summary` entry in Admin → Manage Resume & Experience.
+  const bio = summaryEntry?.description || '';
+
+  // Build the section list in canonical order, honouring each section's lowest
+  // `order` value when the admin has set one (0 = default position).
+  // `header` and `summary` are consumed by the header block at the top of the
+  // resume (name/role/contact + bio), so they're excluded from the standalone
+  // sections list — otherwise the summary would render a second time below.
+  const EXCLUDED_FROM_SECTIONS = ['header', 'summary'];
+  const canonical = EXPERIENCE_TYPES.filter(
+    (t) => TYPE_META[t] && !EXCLUDED_FROM_SECTIONS.includes(t)
+  );
+  const sections = canonical
+    .map((key) => ({
+      key,
+      meta: TYPE_META[key],
+      items: [...(rowsByType[key] || [])].sort(
+        (a, b) => (a.order ?? 0) - (b.order ?? 0) || (a.createdAt < b.createdAt ? 1 : -1)
+      ),
+    }))
+    .filter((s) => s.items.length > 0)
+    .map((s, i) => {
+      const minOrder = Math.min(...s.items.map((it) => it.order ?? 0));
+      return { ...s, minOrder, base: i };
+    })
+    .sort((a, b) => (a.minOrder || a.base) - (b.minOrder || b.base));
 
   return (
     <PageTransition>
@@ -72,6 +121,7 @@ export const Resume = () => {
       />
 
       <div className="relative overflow-x-clip pt-28 sm:pt-36 pb-20">
+        <PageHeroBand />
         <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
           <div className="no-print flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
             <PageHeader
@@ -91,41 +141,44 @@ export const Resume = () => {
           </div>
 
           <div className="resume-container space-y-10 rounded-3xl border border-neutral-200/80 dark:border-neutral-800/80 bg-white dark:bg-neutral-900 p-6 shadow-sm sm:p-10">
+            {/* Header / Contact */}
             <header className="space-y-4 border-b border-neutral-200 pb-8 dark:border-neutral-800">
               <div className="space-y-1">
                 <h2 className="text-2xl sm:text-4xl font-display font-bold tracking-tight text-neutral-900 dark:text-white">
-                  Amar Singh
+                  {name}
                 </h2>
-                <p className="text-sm font-medium text-indigo-600 dark:text-indigo-400 sm:text-base">
-                  Full-Stack Software Engineer
-                </p>
+                {role && (
+                  <p className="text-sm font-medium text-indigo-600 dark:text-indigo-400 sm:text-base">
+                    {role}
+                  </p>
+                )}
               </div>
 
-              <p className="max-w-2xl text-sm leading-relaxed text-neutral-600 dark:text-neutral-400">
-                Full-stack engineer specialising in the MERN stack, REST API architecture, and
-                performance-minded interface work. I build maintainable systems end to end — from
-                MongoDB document models through to accessible, motion-aware React front ends.
-              </p>
+              {bio && (
+                <p className="max-w-2xl text-sm leading-relaxed text-neutral-600 dark:text-neutral-400">
+                  {bio}
+                </p>
+              )}
 
               <div className="flex flex-wrap items-center gap-x-5 gap-y-2 pt-1 text-xs text-neutral-600 dark:text-neutral-400">
                 <a
-                  href="mailto:hkramarsingh@gmail.com"
+                  href={`mailto:${contact.email || SITE.email}`}
                   className="inline-flex items-center gap-1.5 transition-colors hover:text-indigo-500"
                 >
                   <Mail className="h-3.5 w-3.5" />
-                  <span>hkramarsingh@gmail.com</span>
+                  <span>{contact.email || SITE.email}</span>
                 </a>
                 <a
-                  href="https://github.com/HKRAmarSingh19"
+                  href={contact.github || SITE.socials.github}
                   target="_blank"
                   rel="noreferrer"
                   className="inline-flex items-center gap-1.5 transition-colors hover:text-indigo-500"
                 >
                   <Github className="h-3.5 w-3.5" />
-                  <span>github.com/HKRAmarSingh19</span>
+                  <span>{(contact.github || SITE.socials.github).replace('https://', '')}</span>
                 </a>
                 <a
-                  href="https://www.linkedin.com/in/hkr-amar-singh-270246308/"
+                  href={contact.linkedin || SITE.socials.linkedin}
                   target="_blank"
                   rel="noreferrer"
                   className="inline-flex items-center gap-1.5 transition-colors hover:text-indigo-500"
@@ -134,18 +187,29 @@ export const Resume = () => {
                   <span>hkr-amar-singh</span>
                 </a>
                 <a
-                  href="https://codolio.com/profile/hkramar73"
+                  href={contact.codolio || SITE.socials.codolio}
                   target="_blank"
                   rel="noreferrer"
                   className="inline-flex items-center gap-1.5 transition-colors hover:text-indigo-500"
                 >
                   <Code2 className="h-3.5 w-3.5" />
-                  <span>codolio.com/hkramar73</span>
+                  <span>{contact.codolio ? contact.codolio.replace('https://', '') : SITE.socials.codolio.replace('https://', '')}</span>
                 </a>
-                <span className="inline-flex items-center gap-1.5">
-                  <MapPin className="h-3.5 w-3.5" />
-                  <span>Remote / Worldwide</span>
-                </span>
+                {contact.phone && (
+                  <a
+                    href={`tel:${contact.phone}`}
+                    className="inline-flex items-center gap-1.5 transition-colors hover:text-indigo-500"
+                  >
+                    <Phone className="h-3.5 w-3.5" />
+                    <span>{contact.phone}</span>
+                  </a>
+                )}
+                {(contact.location || headerEntry) && (
+                  <span className="inline-flex items-center gap-1.5">
+                    <MapPin className="h-3.5 w-3.5" />
+                    <span>{contact.location || 'Remote / Worldwide'}</span>
+                  </span>
+                )}
               </div>
             </header>
 
@@ -158,24 +222,83 @@ export const Resume = () => {
                   />
                 ))}
               </div>
-            ) : populatedSections.length === 0 ? (
-              <p className="py-10 text-center text-sm text-neutral-500">
-                No resume entries have been added yet.
-              </p>
             ) : (
-              populatedSections.map((section) => {
-                const Icon = section.icon;
+              sections.map((section) => {
+                const Icon = section.meta.icon;
 
+                // These types have bespoke renderers, everything else reuses the
+                // timeline card.
+                if (section.key === 'skills') {
+                  // Categorized layout when the entry defines groups (the classic
+                  // resume style); otherwise fall back to a flat badge cloud.
+                  const groups = section.items.flatMap((it) => it.groups || []);
+                  const hasGroups = groups.length > 0;
+                  if (hasGroups) {
+                    return (
+                      <section key={section.key} className="space-y-6">
+                        <h3 className="flex items-center gap-2 border-b border-neutral-200 pb-2 font-mono text-xs uppercase tracking-widest text-neutral-500 dark:border-neutral-800 dark:text-neutral-400">
+                          <Icon className="h-3.5 w-3.5 text-indigo-500" />
+                          <span>{section.meta.title}</span>
+                        </h3>
+                        <div className="grid grid-cols-1 gap-x-8 gap-y-5 sm:grid-cols-2">
+                          {groups.map((g, gi) => (
+                            <div key={gi} className="space-y-2">
+                              <h4 className="font-mono text-[11px] uppercase tracking-wider text-neutral-900 dark:text-white">
+                                {g.category}
+                              </h4>
+                              <TechBadgeList items={g.skills || []} />
+                            </div>
+                          ))}
+                        </div>
+                      </section>
+                    );
+                  }
+                  const flatSkills = section.items.flatMap((it) => it.items || []);
+                  return (
+                    <section key={section.key} className="space-y-5">
+                      <h3 className="flex items-center gap-2 border-b border-neutral-200 pb-2 font-mono text-xs uppercase tracking-widest text-neutral-500 dark:border-neutral-800 dark:text-neutral-400">
+                        <Icon className="h-3.5 w-3.5 text-indigo-500" />
+                        <span>{section.meta.title}</span>
+                      </h3>
+                      <TechBadgeList items={flatSkills} size="md" />
+                    </section>
+                  );
+                }
+
+                if (section.key === 'coding') {
+                  const profiles = section.items.flatMap((it) => it.profiles || []);
+                  return (
+                    <section key={section.key} className="space-y-5">
+                      <h3 className="flex items-center gap-2 border-b border-neutral-200 pb-2 font-mono text-xs uppercase tracking-widest text-neutral-500 dark:border-neutral-800 dark:text-neutral-400">
+                        <Icon className="h-3.5 w-3.5 text-indigo-500" />
+                        <span>{section.meta.title}</span>
+                      </h3>
+                      <div className="flex flex-wrap gap-3">
+                        {profiles.map((p, i) => (
+                          <a
+                            key={i}
+                            href={p.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-2 rounded-xl border border-neutral-200/80 px-4 py-2.5 text-sm font-medium text-neutral-700 transition-colors hover:border-indigo-500/40 hover:text-indigo-600 dark:border-neutral-800 dark:bg-neutral-800/50 dark:text-neutral-300 dark:hover:text-indigo-400"
+                          >
+                            <span>{p.label}</span>
+                            <ExternalLink className="h-3.5 w-3.5 text-neutral-400" />
+                          </a>
+                        ))}
+                      </div>
+                    </section>
+                  );
+                }
+
+                // Timeline section (work/education/project/achievement/certification/leadership).
                 return (
-                  <section key={section.type} className="space-y-6">
+                  <section key={section.key} className="space-y-6">
                     <h3 className="flex items-center gap-2 border-b border-neutral-200 pb-2 font-mono text-xs uppercase tracking-widest text-neutral-500 dark:border-neutral-800 dark:text-neutral-400">
                       <Icon className="h-3.5 w-3.5 text-indigo-500" />
-                      <span>{section.title}</span>
+                      <span>{section.meta.title}</span>
                     </h3>
 
-                    {/* Timeline rail. Kept as a hairline plus small nodes rather
-                        than anything filled, so it survives the print stylesheet
-                        without laying down a block of ink. */}
                     <div className="relative space-y-7 border-l border-neutral-200 pl-6 dark:border-neutral-800 sm:pl-7">
                       {section.items.map((item, index) => (
                         <motion.div
@@ -201,9 +324,11 @@ export const Resume = () => {
                                 {item.title}
                               </h4>
                               <div className="flex flex-wrap items-center gap-1.5 text-sm text-neutral-600 dark:text-neutral-400">
-                                <span className="font-medium text-indigo-600 dark:text-indigo-400">
-                                  {item.organization}
-                                </span>
+                                {item.organization && (
+                                  <span className="font-medium text-indigo-600 dark:text-indigo-400">
+                                    {item.organization}
+                                  </span>
+                                )}
                                 {item.location && (
                                   <>
                                     <span className="text-neutral-300 dark:text-neutral-700">•</span>
@@ -231,10 +356,12 @@ export const Resume = () => {
                                   Current
                                 </span>
                               )}
-                              <span>
-                                {item.startDate} —{' '}
-                                {item.current ? 'Present' : item.endDate || 'Present'}
-                              </span>
+                              {item.startDate && (
+                                <span>
+                                  {item.startDate} —{' '}
+                                  {item.current ? 'Present' : item.endDate || 'Present'}
+                                </span>
+                              )}
                             </span>
                           </div>
 
@@ -269,29 +396,43 @@ export const Resume = () => {
               })
             )}
 
-            {skillCategories.length > 0 && (
-              <section className="space-y-5">
-                <h3 className="flex items-center gap-2 border-b border-neutral-200 pb-2 font-mono text-xs uppercase tracking-widest text-neutral-500 dark:border-neutral-800 dark:text-neutral-400">
-                  <BadgeCheck className="h-3.5 w-3.5 text-indigo-500" />
-                  <span>Technical Skills</span>
-                </h3>
+            {/* Legacy grouped-skills fallback: shown only while no dedicated
+                `skills` resume entry exists, so prior skills content is retained. */}
+            {!hasSkillsEntries && (
+              (() => {
+                const categories = [
+                  ...['Frontend', 'Backend', 'Database', 'DevOps & Cloud', 'Languages', 'Tools & Workflow'].filter(
+                    (c) => groupedSkills[c]?.length
+                  ),
+                  ...Object.keys(groupedSkills).filter(
+                    (c) => !['Frontend', 'Backend', 'Database', 'DevOps & Cloud', 'Languages', 'Tools & Workflow'].includes(c) && groupedSkills[c]?.length
+                  ),
+                ];
 
-                <div className="grid grid-cols-1 gap-x-8 gap-y-6 sm:grid-cols-2">
-                  {skillCategories.map((category) => (
-                    <div key={category} className="space-y-2">
-                      <h4 className="font-mono text-[11px] uppercase tracking-wider text-neutral-900 dark:text-white">
-                        {category}
-                      </h4>
-                      {/* Chips rather than a dot-separated run of names: the logos
-                          make the categories skimmable on screen, and each chip
-                          still prints as plain bordered text. */}
-                      <TechBadgeList
-                        items={groupedSkills[category].map((skill) => skill.name)}
-                      />
+                if (categories.length === 0) return null;
+
+                return (
+                  <section className="space-y-5">
+                    <h3 className="flex items-center gap-2 border-b border-neutral-200 pb-2 font-mono text-xs uppercase tracking-widest text-neutral-500 dark:border-neutral-800 dark:text-neutral-400">
+                      <BadgeCheck className="h-3.5 w-3.5 text-indigo-500" />
+                      <span>Technical Skills</span>
+                    </h3>
+
+                    <div className="grid grid-cols-1 gap-x-8 gap-y-6 sm:grid-cols-2">
+                      {categories.map((category) => (
+                        <div key={category} className="space-y-2">
+                          <h4 className="font-mono text-[11px] uppercase tracking-wider text-neutral-900 dark:text-white">
+                            {category}
+                          </h4>
+                          <TechBadgeList
+                            items={groupedSkills[category].map((skill) => skill.name)}
+                          />
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              </section>
+                  </section>
+                );
+              })()
             )}
           </div>
         </div>

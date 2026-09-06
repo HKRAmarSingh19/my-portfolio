@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { EXPERIENCE_TYPES } from '../models/Experience.js';
 
 export const validate = (schema) => async (req, res, next) => {
   try {
@@ -106,21 +107,60 @@ export const gallerySchema = z.object({
     }),
 });
 
+// Entry types are shared with the mongoose model so the two enums can never
+// drift. Spread `[...EXPERIENCE_TYPES]` — zod's `enum()` requires a tuple, and
+// our plain (runtime) array must be copied, not passed by reference.
 export const experienceSchema = z.object({
-  body: z.object({
-    type: z.enum(['work', 'education', 'certification', 'award']).optional(),
-    title: z.string().min(2, 'Title/Role is required'),
-    organization: z.string().min(2, 'Organization is required'),
-    location: z.string().optional(),
-    startDate: z.string().min(2, 'Start date is required'),
-    endDate: z.string().optional(),
-    current: z.boolean().optional(),
-    description: z.string().optional(),
-    highlights: z.array(z.string()).optional(),
-    techStack: z.array(z.string()).optional(),
-    link: z.string().optional(),
-    order: z.number().optional(),
-  }),
+  body: z
+    .object({
+      type: z.enum([...EXPERIENCE_TYPES]).optional(),
+      title: z.string().optional(),
+      role: z.string().optional(),
+      organization: z.string().optional(),
+      location: z.string().optional(),
+      // Nested contact card for a `header` entry.
+      contact: z
+        .object({
+          email: z.string().optional(),
+          phone: z.string().optional(),
+          location: z.string().optional(),
+          linkedin: z.string().optional(),
+          github: z.string().optional(),
+          codolio: z.string().optional(),
+        })
+        .optional(),
+      // Flat skill names for a `skills` entry (legacy fallback).
+      items: z.array(z.string()).optional(),
+      // Optional categorized skills for a `skills` entry.
+      groups: z
+        .array(
+          z.object({
+            category: z.string().optional(),
+            skills: z.array(z.string()).optional(),
+          })
+        )
+        .optional(),
+      // Label + URL pairs for a `coding` entry.
+      profiles: z
+        .array(
+          z.object({
+            label: z.string().optional(),
+            url: z.string().optional(),
+          })
+        )
+        .optional(),
+      startDate: z.string().optional(),
+      endDate: z.string().optional(),
+      current: z.boolean().optional(),
+      description: z.string().optional(),
+      highlights: z.array(z.string()).optional(),
+      techStack: z.array(z.string()).optional(),
+      link: z.string().optional(),
+      order: z.number().optional(),
+    })
+    // Preserve future/unknown optional fields rather than stripping them before
+    // they reach the controller.
+    .passthrough(),
 });
 
 

@@ -15,6 +15,7 @@ import Marquee from '../components/common/Marquee';
 import Spotlight from '../components/common/Spotlight';
 import ProfilePortrait from '../components/common/ProfilePortrait';
 import { TechBadgeList } from '../components/common/TechBadge';
+import { resolveTechIcon } from '../components/common/techIcons';
 
 export const Home = () => {
   const prefersReducedMotion = useReducedMotion();
@@ -137,13 +138,17 @@ export const Home = () => {
               className="text-lg sm:text-xl text-neutral-600 dark:text-neutral-300 max-w-2xl leading-relaxed font-light"
             >
               <p className="text-white-600">
-                I’m Hkr. Amar Singh — a Computer Science student who loves turning complex problems into clean, scalable{" "}
-                <span className="text-blue-500 font-semibold">software</span>.
-                From building{" "}
-                <span className="text-blue-500 font-semibold">full-stack applications</span>{" "}
-                with the MERN stack & solving DSA problems in Java and exploring{" "}
-                <span className="text-blue-500 font-semibold">Generative & Agentic AI</span>,
-                I’m constantly learning, building, and pushing my engineering skills further.
+                {profile.bio || (
+                  <>
+                    I’m Hkr. Amar Singh — a Computer Science student who loves turning complex problems into clean, scalable{" "}
+                    <span className="text-blue-500 font-semibold">software</span>.
+                    From building{" "}
+                    <span className="text-blue-500 font-semibold">full-stack applications</span>{" "}
+                    with the MERN stack & solving DSA problems in Java and exploring{" "}
+                    <span className="text-blue-500 font-semibold">Generative & Agentic AI</span>,
+                    I’m constantly learning, building, and pushing my engineering skills further.
+                  </>
+                )}
               </p>
             </motion.p>
 
@@ -350,24 +355,48 @@ export const Home = () => {
           </div>
 
           <div className="lg:col-span-7 grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {topSkills.map((skill, index) => (
-              <motion.div
-                key={skill._id || index}
-                initial={{ opacity: 0, scale: 0.9, y: 12 }}
-                whileInView={{ opacity: 1, scale: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.4, delay: index * 0.05, ease: [0.22, 1, 0.36, 1] }}
-                whileHover={prefersReducedMotion ? undefined : { y: -6, transition: { duration: 0.2 } }}
-                className="group relative p-4 rounded-xl glass flex flex-col justify-between gap-3 hover:border-indigo-500/40 hover:shadow-glow transition-all duration-300 overflow-hidden"
-              >
-                <div className="absolute inset-x-0 -bottom-px h-px bg-gradient-to-r from-transparent via-indigo-500 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                <div className="w-2 h-2 rounded-full bg-indigo-500 group-hover:scale-150 transition-transform duration-300" />
-                <div>
-                  <h4 className="text-xs font-semibold text-neutral-900 dark:text-white line-clamp-1">{skill.name}</h4>
-                  <span className="text-[10px] font-mono text-neutral-400">{skill.category}</span>
-                </div>
-              </motion.div>
-            ))}
+            {topSkills.map((skill, index) => {
+              // Same brand-logo lookup as the Skills page, so a technology's
+              // mark looks identical wherever it appears.
+              const tech = resolveTechIcon(skill.name);
+              const SkillIcon = tech?.Icon || null;
+              const tileStyle = tech?.color ? { backgroundColor: `${tech.color}1F` } : undefined;
+              const iconStyle = tech?.color ? { color: tech.color } : undefined;
+
+              return (
+                <motion.div
+                  key={skill._id || index}
+                  initial={{ opacity: 0, scale: 0.9, y: 12 }}
+                  whileInView={{ opacity: 1, scale: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.4, delay: index * 0.05, ease: [0.22, 1, 0.36, 1] }}
+                  whileHover={prefersReducedMotion ? undefined : { y: -6, transition: { duration: 0.2 } }}
+                  className="group relative p-4 rounded-xl glass flex flex-col justify-between gap-3 hover:border-indigo-500/40 hover:shadow-glow transition-all duration-300 overflow-hidden"
+                >
+                  <div className="absolute inset-x-0 -bottom-px h-px bg-gradient-to-r from-transparent via-indigo-500 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <div
+                    style={tileStyle}
+                    className={`grid h-11 w-11 place-items-center rounded-xl transition-transform duration-300 group-hover:scale-105 ${
+                      tech?.color ? '' : 'bg-neutral-100 dark:bg-neutral-800'
+                    }`}
+                  >
+                    {SkillIcon ? (
+                      <SkillIcon
+                        aria-hidden="true"
+                        style={iconStyle}
+                        className={`h-5 w-5 ${tech?.color ? '' : 'text-neutral-700 dark:text-neutral-200'}`}
+                      />
+                    ) : null}
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-semibold text-neutral-900 dark:text-white line-clamp-1">
+                      {skill.name}
+                    </h4>
+                    <span className="text-[10px] font-mono text-neutral-400">{skill.category}</span>
+                  </div>
+                </motion.div>
+              );
+            })}
           </div>
         </div>
       </section>

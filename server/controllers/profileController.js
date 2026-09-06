@@ -17,7 +17,7 @@ export const getPublicProfile = async (req, res, next) => {
     // Oldest admin wins, so adding a second account can't hijack the homepage.
     const owner = await User.findOne({ role: 'admin' })
       .sort({ createdAt: 1 })
-      .select('name avatar bio');
+      .select('name avatar bio headline');
 
     res.status(200).json({
       success: true,
@@ -25,6 +25,7 @@ export const getPublicProfile = async (req, res, next) => {
         name: owner?.name || 'Amar Singh',
         avatar: owner?.avatar || DEFAULT_AVATAR,
         bio: owner?.bio || '',
+        headline: owner?.headline || 'Full-Stack Software Engineer',
       },
     });
   } catch (error) {

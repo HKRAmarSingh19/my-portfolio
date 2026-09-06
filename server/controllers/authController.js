@@ -10,6 +10,7 @@ const serializeUser = (user) => ({
   role: user.role,
   avatar: user.avatar,
   bio: user.bio,
+  headline: user.headline,
 });
 
 export const login = async (req, res, next) => {
@@ -36,7 +37,7 @@ export const getMe = async (req, res, next) => {
 
 export const updateDetails = async (req, res, next) => {
   try {
-    const { name, email, bio, avatar, currentPassword, newPassword } = req.body;
+    const { name, email, bio, headline, avatar, currentPassword, newPassword } = req.body;
     const user = await User.findById(req.user.id).select('+password');
 
     if (!user) {
@@ -46,6 +47,7 @@ export const updateDetails = async (req, res, next) => {
     if (name) user.name = name;
     if (email) user.email = email;
     if (bio !== undefined) user.bio = bio;
+    if (headline !== undefined) user.headline = headline;
     if (avatar !== undefined) user.avatar = avatar;
 
     if (newPassword) {
