@@ -115,13 +115,13 @@ export const googleLogin = async (req, res, next) => {
     // 1. Exchange the authorization code for tokens using the server-side secret.
     //
     // For the token exchange, `redirect_uri` MUST match what was used when the
-    // authorization code was created. GIS in popup mode uses `postmessage`, not
-    // a real URL — but if the server has an explicit GOOGLE_REDIRECT_URI set,
-    // prefer that (it covers webhook/server-side flows). Fall back to
-    // postmessage for the standard popup case, and finally to whatever the
-    // client sent (legacy compatibility).
-    const exchangeRedirectUri =
-      process.env.GOOGLE_REDIRECT_URI || 'postmessage';
+    // authorization code was created. This app uses Google Identity Services in
+    // popup mode, which always passes the code via `postmessage` — so the token
+    // exchange must use exactly that, regardless of what origin the browser is
+    // on (5173, 5174, production...). A hardcoded GOOGLE_REDIRECT_URI would send
+    // a mismatched URI here and silently break login if the client origin ever
+    // differs from it — so we always use `postmessage`.
+    const exchangeRedirectUri = 'postmessage';
 
     const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
