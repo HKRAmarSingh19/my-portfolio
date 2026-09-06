@@ -233,7 +233,7 @@ export const Gallery = () => {
           {/* Sub-section tabs: the curated Gallery collection, plus the
               auto-synced Instagram and LinkedIn feeds. Styled like the category
               chips below for consistency. */}
-          <div className="flex items-center gap-1.5">
+          <div className="flex flex-wrap items-center gap-1.5">
             <button
               onClick={() => setActiveTab('gallery')}
               className={`inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 font-mono text-xs transition-colors ${

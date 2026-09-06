@@ -159,7 +159,7 @@ export const About = () => {
           </PageHeader>
 
           {hasFacts && (
-            <div className="grid grid-cols-3 gap-3 sm:gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
               {facts.map((fact, index) => {
                 const FactIcon = fact.icon;
                 return (
