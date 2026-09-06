@@ -428,7 +428,7 @@ const seedDB = async () => {
       email: adminEmail,
       password: adminPassword,
       role: 'admin',
-      avatar: '/profile.jpeg',
+      avatar: '',
       bio: 'Full-Stack Software Engineer specializing in minimal editorial interfaces and high-performance MERN architecture.',
     });
     console.log(`[Seed] Created Admin User: ${admin.email}`);

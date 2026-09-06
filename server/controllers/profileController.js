@@ -1,11 +1,11 @@
 import User from '../models/User.js';
 
 /**
- * Shipped with the client as `client/public/profile.jpeg`, so the portrait
- * renders even before the admin uploads a replacement (or before the DB is
- * seeded at all).
+ * The default profile photo was removed — there is no bundled portrait anymore.
+ * When no avatar is set the client renders a neutral initials box (and the
+ * featured-photo carousel takes over when featured images exist).
  */
-export const DEFAULT_AVATAR = '/profile.jpeg';
+export const DEFAULT_AVATAR = '';
 
 /**
  * Public read of the owner's presentable details. Deliberately narrow — the
@@ -17,7 +17,7 @@ export const getPublicProfile = async (req, res, next) => {
     // Oldest admin wins, so adding a second account can't hijack the homepage.
     const owner = await User.findOne({ role: 'admin' })
       .sort({ createdAt: 1 })
-      .select('name avatar bio headline');
+      .select('name avatar bio headline images featuredImages');
 
     res.status(200).json({
       success: true,
@@ -26,6 +26,8 @@ export const getPublicProfile = async (req, res, next) => {
         avatar: owner?.avatar || DEFAULT_AVATAR,
         bio: owner?.bio || '',
         headline: owner?.headline || 'Full-Stack Software Engineer',
+        images: owner?.images || [],
+        featuredImages: owner?.featuredImages || [],
       },
     });
   } catch (error) {

@@ -119,15 +119,12 @@ export const ImageViewer = ({
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
-  // Touch pinch-zoom state: while two fingers are on the media we track the
-  // starting distance / midpoint so the zoom stays anchored to the pinch, and
-  // panning with two fingers moves the photo across the screen.
-  const [isPinching, setIsPinching] = useState(false);
-  const [pinchStartDist, setPinchStartDist] = useState(0);
-  const [pinchStartZoom, setPinchStartZoom] = useState(1);
-  // Single-finger touch panning is only active once zoomed in (>1) — at 1x a
-  // single tap/flick should do nothing to the media (matches drag behavior).
-  const touchPanRef = useRef(null);
+  // Unified pointer-gesture state (mouse OR touch): every active pointer is tracked
+  // in a Map, and when two are down we enter pinch-zoom anchored to the fingers'
+  // changing midpoint. Refs (not React state) hold the gesture values so handlers
+  // never read a stale value mid-gesture.
+  const pointersRef = useRef(new Map()); // pointerId -> {x, y}
+  const pinchStartRef = useRef(null);    // {dist, zoom} of the last pinch step
   // Fullscreen state mirrors the real document state (so Escape to exit keeps the
   // icon in sync), tracked via the fullscreenchange event.
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -144,7 +141,6 @@ export const ImageViewer = ({
   // values without re-attaching on every state change.
   const imageWrapRef = React.useRef(null);
   const mediaRef = React.useRef(null); // the <img> or <video> — for fullscreen
-  const panLastRef = React.useRef(null);
   const zoomRef = React.useRef(1);
   const panRef = React.useRef({ x: 0, y: 0 });
   // Live hls.js instance for the active video (destroyed on unmount/switch),
@@ -452,93 +448,109 @@ export const ImageViewer = ({
   // Drag the (zoomed) image to pan it across the screen. At 1× there is nothing
   // to pan, so dragging does nothing (matches Google Maps). Uses transform
   // translate (no scroll container), so the page underneath is never touched.
-  const onPanDown = (e) => {
-    if (zoomRef.current <= 1) return;
-    panLastRef.current = { x: e.clientX, y: e.clientY };
-    setIsPanning(true);
-    e.currentTarget.setPointerCapture?.(e.pointerId);
-  };
-  const onPanMove = (e) => {
-    if (!isPanning) return;
-    const last = panLastRef.current;
-    setPan((p) => ({
-      x: p.x + (e.clientX - last.x) * PAN_SPEED,
-      y: p.y + (e.clientY - last.y) * PAN_SPEED,
-    }));
-    panLastRef.current = { x: e.clientX, y: e.clientY };
-  };
-  const onPanUp = (e) => {
-    setIsPanning(false);
-    panLastRef.current = null;
-    e.currentTarget.releasePointerCapture?.(e.pointerId);
-  };
+  // ── Unified pointer gestures (mouse + touch) ─────────────────────────────
+  // Drives BOTH 1-finger pan and 2-finger pinch-zoom from RawPointer events, so
+  // a phone pinch never double-fires with the touch handlers (which are removed
+  // below). Active pointers live in a Map; gesture values are refs, not state,
+  // so a handler never reads a stale value mid-gesture.
+  const dist2 = (a, b) => Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+  const mid2 = (a, b) => ({ x: (a.clientX + b.clientX) / 2, y: (a.clientY + b.clientY) / 2 });
 
-  // ── Touch (pinch-zoom + pan) ─────────────────────────────────────────────
-  // Google-Maps-style touch: two-finger pinch zooms anchored to the pinch
-  // midpoint, two-finger drag pans. A single finger pans only when zoomed in.
-  // Implemented with React pointer events (unified mouse/touch/pen) so it shares
-  // the same math as the mouse path.
-  const distance = (a, b) => Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
-  const midpoint = (a, b) => ({ x: (a.clientX + b.clientX) / 2, y: (a.clientY + b.clientY) / 2 });
-
-  const onTouchPanDown = (e) => {
-    // Two fingers = starting a pinch (or pinch-drag).
-    if (e.touches.length === 2) {
-      setIsPinching(true);
-      setPinchStartDist(distance(e.touches[0], e.touches[1]));
-      setPinchStartZoom(zoomRef.current);
-      touchPanRef.current = midpoint(e.touches[0], e.touches[1]);
-      return;
+  const onPointerDown = (e) => {
+    // Only gesture with primary pointers (ignore stylus/eraser pens).
+    if (e.isPrimary === false) return;
+    pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    // When the second finger lands, capture the current pinch baseline so the
+    // zoom scales from here (not from 1x).
+    if (pointersRef.current.size === 2) {
+      const [a, b] = [...pointersRef.current.values()];
+      pinchStartRef.current = {
+        dist: dist2(a, b),
+        zoom: zoomRef.current,
+        pan: { ...panRef.current },
+        mid: mid2(a, b),
+      };
     }
-    // One finger: only pan when already zoomed in (nothing to move at 1x).
-    if (e.touches.length === 1 && zoomRef.current > 1) {
-      touchPanRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    if (zoomRef.current > 1) {
+      setIsPanning(true);
+      e.currentTarget.setPointerCapture?.(e.pointerId);
     }
   };
-  const onTouchPanMove = (e) => {
-    if (e.touches.length === 2 && isPinching) {
-      const mid = midpoint(e.touches[0], e.touches[1]);
-      const dist = distance(e.touches[0], e.touches[1]);
-      const z0 = pinchStartZoom;
-      const f = dist / pinchStartDist;
-      const next = Math.min(ZOOM_MAX, Math.max(1, +(z0 * f).toFixed(2)));
 
-      // Keep the pinch midpoint fixed on screen while zooming, same math as the
-      // wheel handler — anchored to the two fingers' center.
-      const cr = imageWrapRef.current.getBoundingClientRect();
+  const onPointerMove = (e) => {
+    if (!pointersRef.current.has(e.pointerId)) return;
+    // Capture the PREVIOUS position before overwriting the map (needed for the
+    // 1-finger pan delta below — reading it after set() gives zero movement).
+    const prevPt = pointersRef.current.get(e.pointerId);
+    pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    const pts = [...pointersRef.current.values()];
+
+    // ── Two pointers: pinch-zoom (+ pan via midpoint) ──
+    if (pts.length === 2) {
+      const [a, b] = pts;
+      const mid = mid2(a, b);
+      const d = dist2(a, b);
+      const start = pinchStartRef.current;
+      if (!start) return;
+      const next = Math.min(ZOOM_MAX, Math.max(1, start.zoom * (d / start.dist)));
+
+      // Anchor to the fingers' midpoint: keep the content point under the pinch
+      // fixed on screen (same math as the wheel handler, from the start pan).
+      const cr = imageWrapRef.current?.getBoundingClientRect();
+      if (!cr) return;
       const Cx = cr.left + cr.width / 2;
       const Cy = cr.top + cr.height / 2;
       const px = mid.x;
       const py = mid.y;
-      const t = panRef.current;
-      const fz = next / z0;
+      const sp = start.pan;
+      const fz = next / start.zoom;
+      const npan = {
+        x: px - Cx - fz * (px - Cx - sp.x),
+        y: py - Cy - fz * (py - Cy - sp.y),
+      };
+      // Apply instantaneously via ref sync so the render thread has fresh values
+      // (avoids the jank of two setState calls per move).
       setZoom(next);
-      setPan({
-        x: px - Cx - fz * (px - Cx - t.x),
-        y: py - Cy - fz * (py - Cy - t.y),
-      });
-      // Track the midpoint so a two-finger drag pans too.
-      touchPanRef.current = mid;
+      setPan(npan);
+      zoomRef.current = next;
+      panRef.current = npan;
       return;
     }
-    if (e.touches.length === 1 && touchPanRef.current && zoomRef.current > 1) {
-      const t = touchPanRef.current;
-      setPan((p) => ({
-        x: p.x + (e.touches[0].clientX - t.x) * PAN_SPEED,
-        y: p.y + (e.touches[0].clientY - t.y) * PAN_SPEED,
-      }));
-      touchPanRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+
+    // ── One pointer: pan (only when zoomed in) ──
+    if (pts.length === 1) {
+      const last = prevPt;
+      if (zoomRef.current <= 1 || !last) return;
+      const dx = e.clientX - last.x;
+      const dy = e.clientY - last.y;
+      const np = {
+        x: panRef.current.x + dx * (e.pointerType === 'touch' ? 1 : PAN_SPEED),
+        y: panRef.current.y + dy * (e.pointerType === 'touch' ? 1 : PAN_SPEED),
+      };
+      setPan(np);
+      panRef.current = np;
     }
   };
-  const onTouchPanEnd = (e) => {
-    // When one finger lifts, stop the pinch but keep zoom state. If zoomed out
-    // to 1x, snap the pan back to center (nothing should stay shifted).
-    if (e.touches.length < 2) setIsPinching(false);
-    if (zoomRef.current <= 1) {
-      setZoom(1);
-      setPan({ x: 0, y: 0 });
+
+  const onPointerUp = (e) => {
+    pointersRef.current.delete(e.pointerId);
+    // If one of two fingers lifted, re-baseline the remaining pinch baseline so
+    // a continued pinch doesn't jump.
+    if (pointersRef.current.size === 1) {
+      pinchStartRef.current = null;
+    } else if (pointersRef.current.size === 0) {
+      pinchStartRef.current = null;
+      e.currentTarget.releasePointerCapture?.(e.pointerId);
+      // Snap back to clean center when zoomed all the way out.
+      if (zoomRef.current <= 1) {
+        setZoom(1);
+        setPan({ x: 0, y: 0 });
+        zoomRef.current = 1;
+        panRef.current = { x: 0, y: 0 };
+      }
     }
-    touchPanRef.current = null;
+    setIsPanning(pointersRef.current.size === 1 && zoomRef.current > 1);
   };
 
   // Download the currently shown media. Fetches as a blob so it works for both
@@ -578,14 +590,10 @@ export const ImageViewer = ({
       )}
       <div
         ref={imageWrapRef}
-        onPointerDown={onPanDown}
-        onPointerMove={onPanMove}
-        onPointerUp={onPanUp}
-        onPointerCancel={onPanUp}
-        onTouchStart={onTouchPanDown}
-        onTouchMove={onTouchPanMove}
-        onTouchEnd={onTouchPanEnd}
-        onTouchCancel={onTouchPanEnd}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
         className={`relative touch-none will-change-transform ${
           isFullscreen
             // Fullscreen: the wrapper fills the screen and centers the media,

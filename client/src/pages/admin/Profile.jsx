@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Upload, Save, RotateCcw, Loader2, AlertTriangle, Image as ImageIcon } from 'lucide-react';
+import { Upload, Save, RotateCcw, Loader2, AlertTriangle, Image as ImageIcon, Star, ChevronUp, ChevronDown, X, Eye, EyeOff } from 'lucide-react';
 import { profileApi, uploadApi } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import SEO from '../../components/common/SEO';
@@ -14,6 +14,7 @@ export const Profile = () => {
   const queryClient = useQueryClient();
   const { updateProfile } = useAuth();
   const fileInputRef = useRef(null);
+  const imagesInputRef = useRef(null);
 
   const [name, setName] = useState('');
   const [headline, setHeadline] = useState('');
@@ -21,6 +22,12 @@ export const Profile = () => {
   const [avatar, setAvatar] = useState('');
   const [pickedFile, setPickedFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
+  // Multi-image "Profile photos" set: saved S3 URLs (ordered, index 0 = primary)
+  // plus new local picks (object-URL previews aligned 1:1 with pickedFiles).
+  const [images, setImages] = useState([]);
+  const [featuredImages, setFeaturedImages] = useState([]);
+  const [pickedFiles, setPickedFiles] = useState([]);
+  const [previewUrls, setPreviewUrls] = useState([]);
   const [feedback, setFeedback] = useState(null);
   const [error, setError] = useState(null);
 
@@ -38,6 +45,8 @@ export const Profile = () => {
     setHeadline(profile.headline || '');
     setBio(profile.bio || '');
     setAvatar(profile.avatar || FALLBACK_AVATAR);
+    setImages(profile.images || []);
+    setFeaturedImages(profile.featuredImages || []);
   }, [profile]);
 
   // Cleanup runs when previewUrl changes, releasing the URL it replaced.
@@ -76,6 +85,97 @@ export const Profile = () => {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
+  // ── Profile-photos manager ──────────────────────────────────────────────
+  // Mirrors ManageGallery's unified preview list (existing saved URLs + new
+  // local picks), but leaner — no crop, no video, no paste-URL.
+
+  const handlePickFiles = (event) => {
+    const files = Array.from(event.target.files || []);
+    if (!files.length) return;
+    setError(null);
+
+    // The server's upload.array('images', 10) caps one request at 10 files; keep
+    // the session-plus-new total within it by parking the new picks to fill the
+    // remaining room only.
+    const savedRoom = 10 - pickedFiles.length;
+
+    const valid = [];
+    for (const file of files) {
+      if (!ACCEPTED_TYPES.includes(file.type)) {
+        setError('One of the selected files is not a JPEG, PNG, WebP, GIF or SVG image.');
+        continue;
+      }
+      if (file.size > MAX_BYTES) {
+        setError('One of the selected files is over the 5 MB limit. Try a smaller file.');
+        continue;
+      }
+      if (valid.length < savedRoom) valid.push(file);
+    }
+    if (!valid.length) return;
+
+    setPickedFiles((prev) => [...prev, ...valid]);
+    setPreviewUrls((prev) => [...prev, ...valid.map((f) => URL.createObjectURL(f))]);
+    if (imagesInputRef.current) imagesInputRef.current.value = '';
+  };
+
+  // Unified preview list: saved URLs first (index 0 = primary), then the new
+  // local picks. Each entry is tagged by origin so reorder/remove writes back
+  // to the right source.
+  const mergedPreviews = [
+    ...images.map((url) => ({ id: `ex-${url}`, url, isNew: false })),
+    ...previewUrls.map((url) => ({ id: `new-${url}`, url, isNew: true })),
+  ];
+
+  // Write an ordered preview list back to both sources: existing URLs → images,
+  // new object URLs → previewUrls (with pickedFiles realigned by index). Object
+  // URLs that fall out of the list are revoked so no preview leaks.
+  const resyncFromMerged = (merged) => {
+    const existing = merged.filter((m) => !m.isNew).map((m) => m.url);
+    const newUrls = merged.filter((m) => m.isNew).map((m) => m.url);
+
+    setImages(existing);
+    previewUrls.forEach((u) => {
+      if (!newUrls.includes(u)) URL.revokeObjectURL(u);
+    });
+    setPreviewUrls(newUrls);
+    setPickedFiles((files) => newUrls.map((u) => files[previewUrls.indexOf(u)]).filter(Boolean));
+    // A photo that was removed must no longer be "featured" — drop any featured
+    // URL that is no longer in the merged list.
+    const urls = merged.map((m) => m.url);
+    setFeaturedImages((prev) => prev.filter((u) => urls.includes(u)));
+  };
+
+  // Toggle whether a photo is "featured" — featured photos rotate on the
+  // homepage hero carousel.
+  const handleToggleFeatured = (index) => {
+    const url = mergedPreviews[index]?.url;
+    if (!url) return;
+    setFeaturedImages((prev) =>
+      prev.includes(url) ? prev.filter((u) => u !== url) : [...prev, url]
+    );
+  };
+
+  const handleRemoveImage = (index) => {
+    resyncFromMerged(mergedPreviews.filter((_, i) => i !== index));
+  };
+
+  const handleMoveImage = (index, dir) => {
+    const target = index + dir;
+    if (target < 0 || target >= mergedPreviews.length) return;
+    const merged = [...mergedPreviews];
+    const [moved] = merged.splice(index, 1);
+    merged.splice(target, 0, moved);
+    resyncFromMerged(merged);
+  };
+
+  const handleMakePrimary = (index) => {
+    if (index === 0) return;
+    const merged = [...mergedPreviews];
+    const [moved] = merged.splice(index, 1);
+    merged.unshift(moved);
+    resyncFromMerged(merged);
+  };
+
   const saveMutation = useMutation({
     mutationFn: async () => {
       let nextAvatar = avatar;
@@ -88,20 +188,45 @@ export const Profile = () => {
         nextAvatar = uploaded.url;
       }
 
-      const { data: saved } = await profileApi.update({ name, headline, bio, avatar: nextAvatar });
+      // Profile photos: upload the new picks (all in one request), then merge
+      // them back into the ordered list at their preview positions.
+      let nextImages = mergedPreviews.map((m) => m.url);
+      if (pickedFiles.length) {
+        const fd = new FormData();
+        pickedFiles.forEach((f) => fd.append('images', f));
+        const { data: uploaded } = await uploadApi.uploadImages(fd);
+        if (!uploaded?.urls?.length) throw new Error('The server did not return any image URLs.');
+        let j = 0;
+        nextImages = mergedPreviews.map((m) => (m.isNew ? uploaded.urls[j++] : m.url));
+      }
+
+      // Featured order = current merged-list order; membership tested by the
+      // ORIGINAL (pre-substitution) URL, so a new pick that was marked featured
+      // lands in `nextFeaturedImages` as its uploaded S3 URL.
+      const featuredSet = new Set(featuredImages);
+      const nextFeaturedImages = nextImages.filter((url, i) =>
+        featuredSet.has(mergedPreviews[i].url)
+      );
+
+      const { data: saved } = await profileApi.update({ name, headline, bio, avatar: nextAvatar, images: nextImages, featuredImages: nextFeaturedImages });
       return saved;
     },
     onSuccess: (saved) => {
       if (saved?.user) {
         setAvatar(saved.user.avatar || FALLBACK_AVATAR);
+        setImages(saved.user.images || []);
+        setFeaturedImages(saved.user.featuredImages || []);
         updateProfile(saved.user);
       }
       setPickedFile(null);
       setPreviewUrl(null);
+      setPickedFiles([]);
+      previewUrls.forEach((u) => URL.revokeObjectURL(u));
+      setPreviewUrls([]);
       if (fileInputRef.current) fileInputRef.current.value = '';
 
       queryClient.invalidateQueries({ queryKey: ['publicProfile'] });
-      setFeedback('Saved — the homepage hero now shows this portrait.');
+      setFeedback('Saved — your profile and photos are up to date.');
       setTimeout(() => setFeedback(null), 4000);
     },
     onError: (err) => {
@@ -109,8 +234,17 @@ export const Profile = () => {
     },
   });
 
-  const isDirty =
+  // Set-based compare of the featured subset (order-insensitive) so toggling a
+// photo off then back on doesn't leave a spurious "Unsaved changes" flag.
+const featuredEqual = (a, b) =>
+  a.length === b.length &&
+  [...a].sort().join(' ') === [...b].sort().join(' ');
+
+const isDirty =
     Boolean(pickedFile) ||
+    JSON.stringify(images) !== JSON.stringify(profile?.images || []) ||
+    !featuredEqual(featuredImages, profile?.featuredImages || []) ||
+    pickedFiles.length > 0 ||
     name !== (profile?.name || '') ||
     headline !== (profile?.headline || '') ||
     bio !== (profile?.bio || '') ||
@@ -204,6 +338,148 @@ export const Profile = () => {
               <p className="flex items-center gap-1.5 font-mono text-[10px] text-neutral-500">
                 <ImageIcon className="w-3 h-3" />
                 JPEG, PNG, WebP, GIF or SVG · up to 5 MB · square images look best
+              </p>
+            </div>
+
+            {/* ── Profile photos (multi-image set, storage only) ───────────── */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="block font-mono text-[11px] uppercase tracking-wider text-neutral-400">
+                  Profile photos
+                </label>
+                <span className="font-mono text-[10px] text-neutral-500">
+                  {mergedPreviews.length} {mergedPreviews.length === 1 ? 'photo' : 'photos'}
+                </span>
+              </div>
+
+              <input
+                ref={imagesInputRef}
+                type="file"
+                multiple
+                accept={ACCEPTED_TYPES.join(',')}
+                onChange={handlePickFiles}
+                className="sr-only"
+                id="profile-photos-upload"
+              />
+
+              <label
+                htmlFor="profile-photos-upload"
+                className="inline-flex cursor-pointer items-center gap-2 px-4 py-2.5 rounded-xl border border-neutral-700 text-neutral-200 font-medium text-xs hover:bg-neutral-800 transition-colors"
+              >
+                <Upload className="w-4 h-4" />
+                <span>{pickedFiles.length ? `${pickedFiles.length} selected` : 'Add photos'}</span>
+              </label>
+
+              <p className="flex items-center gap-1.5 font-mono text-[10px] text-neutral-500">
+                <ImageIcon className="w-3 h-3" />
+                Upload several at once · the eye toggles which ones rotate on the homepage hero
+              </p>
+
+              {mergedPreviews.length === 0 ? (
+                <p className="rounded-xl border border-dashed border-neutral-800 px-4 py-4 text-center font-mono text-[11px] text-neutral-500">
+                  No profile photos yet. The homepage keeps using the portrait above.
+                </p>
+              ) : (
+                <ul className="space-y-2">
+                  {mergedPreviews.map((entry, index) => (
+                    <li
+                      key={entry.id}
+                      className="flex items-center gap-3 rounded-xl border border-neutral-800 bg-neutral-950 px-3 py-2"
+                    >
+                      <img
+                        src={entry.url}
+                        alt={`Profile photo ${index + 1}`}
+                        loading="lazy"
+                        className="h-12 w-12 shrink-0 rounded-lg object-cover"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-xs text-neutral-200">
+                          {entry.isNew ? 'New (pending upload)' : `Photo ${index + 1}`}
+                        </p>
+                        <span className="flex items-center gap-2">
+                          {index === 0 && (
+                            <span className="inline-flex items-center gap-1 font-mono text-[10px] text-indigo-400">
+                              <Star className="h-2.5 w-2.5 fill-indigo-400" />
+                              Primary
+                            </span>
+                          )}
+                          {featuredImages.includes(entry.url) && (
+                            <span className="inline-flex items-center gap-1 font-mono text-[10px] text-amber-400">
+                              <Eye className="h-2.5 w-2.5" />
+                              Featured
+                            </span>
+                          )}
+                        </span>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => handleToggleFeatured(index)}
+                          title={featuredImages.includes(entry.url) ? 'Unfeature' : 'Feature (home hero carousel)'}
+                          aria-label={
+                            featuredImages.includes(entry.url)
+                              ? `Unfeature photo ${index + 1}`
+                              : `Feature photo ${index + 1}`
+                          }
+                          className={`grid h-7 w-7 place-items-center rounded-lg transition-colors hover:bg-neutral-800 ${
+                            featuredImages.includes(entry.url)
+                              ? 'text-amber-400 hover:text-amber-300'
+                              : 'text-neutral-500 hover:text-neutral-200'
+                          }`}
+                        >
+                          {featuredImages.includes(entry.url) ? (
+                            <Eye className="h-3.5 w-3.5" />
+                          ) : (
+                            <EyeOff className="h-3.5 w-3.5" />
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleMakePrimary(index)}
+                          disabled={index === 0}
+                          title="Make primary"
+                          aria-label={`Make photo ${index + 1} primary`}
+                          className="grid h-7 w-7 place-items-center rounded-lg text-neutral-400 transition-colors hover:bg-neutral-800 hover:text-indigo-400 disabled:opacity-30 disabled:cursor-not-allowed"
+                        >
+                          <Star className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleMoveImage(index, -1)}
+                          disabled={index === 0}
+                          title="Move up"
+                          aria-label={`Move photo ${index + 1} up`}
+                          className="grid h-7 w-7 place-items-center rounded-lg text-neutral-400 transition-colors hover:bg-neutral-800 hover:text-indigo-400 disabled:opacity-30 disabled:cursor-not-allowed"
+                        >
+                          <ChevronUp className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleMoveImage(index, 1)}
+                          disabled={index === mergedPreviews.length - 1}
+                          title="Move down"
+                          aria-label={`Move photo ${index + 1} down`}
+                          className="grid h-7 w-7 place-items-center rounded-lg text-neutral-400 transition-colors hover:bg-neutral-800 hover:text-indigo-400 disabled:opacity-30 disabled:cursor-not-allowed"
+                        >
+                          <ChevronDown className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveImage(index)}
+                          title="Remove"
+                          aria-label={`Remove photo ${index + 1}`}
+                          className="grid h-7 w-7 place-items-center rounded-lg text-neutral-400 transition-colors hover:bg-red-500/20 hover:text-red-400"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <p className="font-mono text-[10px] text-neutral-600">
+                The first photo is the primary portrait; featured photos auto-rotate on the
+                homepage hero. Removing a featured photo also clears it from the carousel on save.
               </p>
             </div>
 

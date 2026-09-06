@@ -14,6 +14,7 @@ import Counter from '../components/common/Counter';
 import Marquee from '../components/common/Marquee';
 import Spotlight from '../components/common/Spotlight';
 import ProfilePortrait from '../components/common/ProfilePortrait';
+import ProfilePortraitCarousel from '../components/common/ProfilePortraitCarousel';
 import ImageViewer from '../components/common/ImageViewer';
 import { TechBadgeList } from '../components/common/TechBadge';
 import { resolveTechIcon } from '../components/common/techIcons';
@@ -46,12 +47,19 @@ export const Home = () => {
 
   // Portrait + name are admin-editable, so they come from the API rather than
   // being hard-coded here. Falls back to the bundled defaults on failure.
+  // staleTime: 0 — the profile changes whenever the admin updates it; a stale
+  // cached payload (from before a change) would show the wrong portrait.
   const { data: profileData } = useQuery({
     queryKey: ['publicProfile'],
     queryFn: () => profileApi.get(),
+    staleTime: 0,
   });
 
   const profile = profileData?.data?.data || {};
+
+  // Featured profile photos rotate in the hero carousel (only on Home). Falls
+  // back to the single avatar portrait when none are featured.
+  const featuredProfileImages = (profile.featuredImages || []).filter(Boolean);
 
   const featuredProjects =
     projectsData?.data?.data?.filter((p) => p.featured).slice(0, 3) || [];
@@ -138,7 +146,7 @@ export const Home = () => {
         {/* ── Hero ─────────────────────────────────────────────────────── */}
         <section className="relative pt-24 sm:pt-32 pb-16 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-          <div className="lg:col-span-7 space-y-6 relative z-10">
+          <div className="lg:col-span-7 space-y-6 relative z-10 flex flex-col items-center lg:items-start text-center lg:text-left">
             <motion.div
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
@@ -202,7 +210,7 @@ export const Home = () => {
               initial={{ opacity: 0, y: 14 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 1.15 }}
-              className="flex flex-wrap items-center gap-4 pt-4"
+              className="flex flex-wrap items-center justify-center lg:justify-start gap-4 pt-4"
             >
               <MagneticButton
                 as={Link}
@@ -240,8 +248,16 @@ export const Home = () => {
                 margins. pointer-events-none keeps the portrait tilt interactive —
                 the scene tracks the window pointer, so parallax still works. */}
             <Scene3D className="pointer-events-none absolute -inset-8 sm:-inset-12 opacity-70 dark:opacity-80" />
-            <div className="relative mx-auto w-full max-w-[15rem] sm:max-w-xs lg:max-w-none">
-              <ProfilePortrait src={profile.avatar} name={profile.name} />
+            <div className="relative mx-auto w-full max-w-[15rem] sm:max-w-xs lg:max-w-none pb-4">
+              {featuredProfileImages.length > 0 ? (
+                <ProfilePortraitCarousel
+                  images={featuredProfileImages}
+                  name={profile.name}
+                  headline={profile.headline}
+                />
+              ) : (
+                <ProfilePortrait src={profile.avatar} name={profile.name} />
+              )}
             </div>
           </motion.div>
         </div>
@@ -254,7 +270,7 @@ export const Home = () => {
             transition={{ duration: 0.8, delay: 1.3 }}
             className="mt-14 pt-8 border-t border-neutral-200/70 dark:border-neutral-800/70 space-y-3"
           >
-            <span className="font-mono text-[11px] uppercase tracking-widest text-neutral-400">
+            <span className="block text-center lg:text-left font-mono text-[11px] uppercase tracking-widest text-neutral-400">
               Working with
             </span>
             <Marquee items={skillNames} />
@@ -272,7 +288,7 @@ export const Home = () => {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.5, delay: index * 0.08 }}
-              className="group relative p-6 rounded-2xl glass overflow-hidden hover:border-indigo-500/40 transition-colors"
+              className="group relative p-6 rounded-2xl glass overflow-hidden hover:border-indigo-500/40 transition-colors text-center"
             >
               <div className="absolute -right-6 -top-6 h-20 w-20 rounded-full bg-indigo-500/10 blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
               <div className="relative text-3xl sm:text-4xl font-display font-bold text-neutral-900 dark:text-white tabular-nums">
@@ -288,7 +304,7 @@ export const Home = () => {
 
       {/* ── Featured projects ────────────────────────────────────────────── */}
       <section className="py-16 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 border-t border-neutral-200/70 dark:border-neutral-800/70">
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-10 gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-10 gap-4 text-center sm:text-left">
           <div>
             <span className="font-mono text-xs uppercase tracking-widest text-indigo-600 dark:text-indigo-400">Selected Work</span>
             <h2 className="text-2xl sm:text-4xl font-display font-bold text-neutral-900 dark:text-white mt-1 tracking-tight">
@@ -297,7 +313,7 @@ export const Home = () => {
           </div>
           <Link
             to="/projects"
-            className="link-underline inline-flex items-center gap-1.5 text-sm font-medium text-neutral-600 dark:text-neutral-400 hover:text-indigo-500 transition-colors group"
+            className="link-underline inline-flex items-center justify-center sm:justify-start gap-1.5 text-sm font-medium text-neutral-600 dark:text-neutral-400 hover:text-indigo-500 transition-colors group"
           >
             <span>View all projects</span>
             <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
@@ -379,7 +395,7 @@ export const Home = () => {
       {/* ── Featured gallery ─────────────────────────────────────────────── */}
       {featuredGallery.length > 0 && (
         <section className="py-16 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 border-t border-neutral-200/70 dark:border-neutral-800/70">
-          <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-10 gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-10 gap-4 text-center sm:text-left">
             <div>
               <span className="font-mono text-xs uppercase tracking-widest text-indigo-600 dark:text-indigo-400">Visual Archive</span>
               <h2 className="text-2xl sm:text-4xl font-display font-bold text-neutral-900 dark:text-white mt-1 tracking-tight">
@@ -388,7 +404,7 @@ export const Home = () => {
             </div>
             <Link
               to="/gallery"
-              className="link-underline inline-flex items-center gap-1.5 text-sm font-medium text-neutral-600 dark:text-neutral-400 hover:text-indigo-500 transition-colors group"
+              className="link-underline inline-flex items-center justify-center sm:justify-start gap-1.5 text-sm font-medium text-neutral-600 dark:text-neutral-400 hover:text-indigo-500 transition-colors group"
             >
               <span>View full gallery</span>
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
@@ -463,7 +479,7 @@ export const Home = () => {
       {/* ── Capabilities ─────────────────────────────────────────────────── */}
       <section className="py-16 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 border-t border-neutral-200/70 dark:border-neutral-800/70">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
-          <div className="lg:col-span-5 space-y-4">
+          <div className="lg:col-span-5 space-y-4 flex flex-col items-center lg:items-start text-center lg:text-left">
             <span className="font-mono text-xs uppercase tracking-widest text-indigo-600 dark:text-indigo-400">Capabilities</span>
             <h2 className="text-2xl sm:text-4xl font-display font-bold text-neutral-900 dark:text-white tracking-tight">
               <AnimatedText text="Full-Stack Architecture & Modern Tooling" inView />
@@ -476,7 +492,7 @@ export const Home = () => {
             <div className="pt-2">
               <Link
                 to="/skills"
-                className="link-underline inline-flex items-center gap-1.5 text-sm font-medium text-indigo-600 dark:text-indigo-400"
+                className="link-underline inline-flex items-center justify-center gap-1.5 text-sm font-medium text-indigo-600 dark:text-indigo-400"
               >
                 <span>Explore all technical proficiencies</span>
                 <ArrowRight className="w-4 h-4" />
@@ -533,7 +549,7 @@ export const Home = () => {
 
       {/* ── Recent writing ───────────────────────────────────────────────── */}
       <section className="py-16 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 border-t border-neutral-200/70 dark:border-neutral-800/70">
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-10 gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-10 gap-4 text-center sm:text-left">
           <div>
             <span className="font-mono text-xs uppercase tracking-widest text-indigo-600 dark:text-indigo-400">Engineering Log</span>
             <h2 className="text-2xl sm:text-4xl font-display font-bold text-neutral-900 dark:text-white mt-1 tracking-tight">
@@ -542,7 +558,7 @@ export const Home = () => {
           </div>
           <Link
             to="/blog"
-            className="link-underline inline-flex items-center gap-1.5 text-sm font-medium text-neutral-600 dark:text-neutral-400 hover:text-indigo-500 transition-colors group"
+            className="link-underline inline-flex items-center justify-center sm:justify-start gap-1.5 text-sm font-medium text-neutral-600 dark:text-neutral-400 hover:text-indigo-500 transition-colors group"
           >
             <span>Read all articles</span>
             <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
@@ -599,7 +615,7 @@ export const Home = () => {
       <section className="py-16 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <Spotlight className="rounded-3xl border border-neutral-800 bg-neutral-900 text-white grain">
           <div className="absolute inset-0 bg-dots opacity-30" aria-hidden="true" />
-          <div className="relative p-8 sm:p-14 max-w-2xl space-y-4">
+          <div className="relative p-8 sm:p-14 max-w-2xl space-y-4 flex flex-col items-center text-center">
             <span className="inline-flex items-center gap-2 font-mono text-xs uppercase tracking-widest text-indigo-400">
               <Sparkles className="w-3.5 h-3.5" />
               Let's build something remarkable
@@ -611,7 +627,7 @@ export const Home = () => {
               I am open to consulting engagements, architectural reviews, and full-time technical
               leadership roles.
             </p>
-            <div className="pt-4 flex flex-wrap gap-4">
+            <div className="pt-4 flex flex-wrap items-center justify-center gap-4">
               <MagneticButton
                 as={Link}
                 to="/contact"

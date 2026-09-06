@@ -11,6 +11,8 @@ const serializeUser = (user) => ({
   avatar: user.avatar,
   bio: user.bio,
   headline: user.headline,
+  images: user.images || [],
+  featuredImages: user.featuredImages || [],
 });
 
 export const login = async (req, res, next) => {
@@ -37,7 +39,7 @@ export const getMe = async (req, res, next) => {
 
 export const updateDetails = async (req, res, next) => {
   try {
-    const { name, email, bio, headline, avatar, currentPassword, newPassword } = req.body;
+    const { name, email, bio, headline, avatar, images, featuredImages, currentPassword, newPassword } = req.body;
     const user = await User.findById(req.user.id).select('+password');
 
     if (!user) {
@@ -49,6 +51,17 @@ export const updateDetails = async (req, res, next) => {
     if (bio !== undefined) user.bio = bio;
     if (headline !== undefined) user.headline = headline;
     if (avatar !== undefined) user.avatar = avatar;
+    // Wholesale set of the profile image collection. `!== undefined` preserves
+    // the pass-if-present convention and — importantly — honors `[]`, so the
+    // admin can clear the whole set. Non-array input is normalized to [].
+    if (images !== undefined) {
+      user.images = Array.isArray(images) ? images.map(String).filter(Boolean) : [];
+    }
+    // Same convention as `images`: wholesale set, `!== undefined` guards so `[]`
+    // (clearing) works and absent keys leave the field untouched.
+    if (featuredImages !== undefined) {
+      user.featuredImages = Array.isArray(featuredImages) ? featuredImages.map(String).filter(Boolean) : [];
+    }
 
     if (newPassword) {
       if (!currentPassword) {

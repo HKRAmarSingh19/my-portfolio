@@ -35,9 +35,23 @@ const userSchema = new mongoose.Schema(
     },
     avatar: {
       type: String,
-      // Ships with the client bundle; replaced by an /uploads/... path once the
-      // admin uploads their own portrait.
-      default: '/profile.jpeg',
+      // No bundled default photo anymore — empty until the admin uploads a
+      // portrait. The client falls back to a neutral initials box.
+      default: '',
+    },
+    // Multi-image set (storage only for now — the public site keeps using
+    // `avatar`). Index 0 is the intended "primary" whenever the front-end
+    // starts consuming it.
+    images: {
+      type: [String],
+      default: [],
+    },
+    // Ordered subset of `images` that rotate on the homepage hero carousel.
+    // A URL present here means "featured". Kept parallel to (not nested in)
+    // `images` so the existing multi-image manager stays untouched.
+    featuredImages: {
+      type: [String],
+      default: [],
     },
     bio: {
       type: String,
