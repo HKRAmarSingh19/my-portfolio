@@ -19,7 +19,7 @@ import { messagesApi } from '../api/client';
 import PageTransition from '../components/layout/PageTransition';
 import SEO from '../components/common/SEO';
 import PageHeader from '../components/common/PageHeader';
-
+import PageHeroBand from '../components/common/PageHeroBand';
 const SOCIALS = [
   { label: 'LinkedIn', href: 'https://www.linkedin.com/in/hkr-amar-singh-270246308/', icon: Linkedin },
   { label: 'GitHub', href: 'https://github.com/HKRAmarSingh19', icon: Github },
@@ -122,6 +122,7 @@ export const Contact = () => {
       />
 
       <div className="relative overflow-x-clip pt-28 sm:pt-36 pb-20">
+        <PageHeroBand />
         <div className="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
           <PageHeader
             eyebrow="Initiate Contact"

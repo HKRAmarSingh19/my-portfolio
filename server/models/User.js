@@ -43,6 +43,13 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: '',
     },
+    // One-line role/headline shown as the identity subtitle (resume header,
+    // navbar, etc). Kept separate from `bio` so the title can change without
+    // rewriting the longer summary.
+    headline: {
+      type: String,
+      default: 'Full-Stack Software Engineer',
+    },
   },
   {
     timestamps: true,

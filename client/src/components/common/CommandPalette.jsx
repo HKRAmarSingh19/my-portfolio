@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, FolderGit2, BookOpen, Layers, User, FileText, Mail, Sun, Moon, Copy, Check, ExternalLink, Images, Instagram } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
+import { SITE } from '../../constants/site';
 
 export const CommandPalette = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
@@ -51,10 +52,10 @@ export const CommandPalette = ({ isOpen, onClose }) => {
       action: () => { toggleTheme(); onClose(); },
     },
     {
-      label: copied ? 'Email Copied to Clipboard!' : 'Copy Email Address (amar@example.com)',
+      label: copied ? 'Email Copied to Clipboard!' : `Copy Email Address (${SITE.email})`,
       icon: copied ? Check : Copy,
       action: () => {
-        navigator.clipboard.writeText('amar@example.com');
+        navigator.clipboard.writeText(SITE.email);
         setCopied(true);
         setTimeout(() => {
           setCopied(false);
@@ -65,7 +66,7 @@ export const CommandPalette = ({ isOpen, onClose }) => {
     {
       label: 'View GitHub Profile',
       icon: ExternalLink,
-      action: () => { window.open('https://github.com/HKRAmarSingh19', '_blank'); onClose(); },
+      action: () => { window.open(SITE.socials.github, '_blank'); onClose(); },
     },
   ];
 

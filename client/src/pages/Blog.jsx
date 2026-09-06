@@ -7,6 +7,7 @@ import { blogApi } from '../api/client';
 import PageTransition from '../components/layout/PageTransition';
 import SEO from '../components/common/SEO';
 import PageHeader from '../components/common/PageHeader';
+import PageHeroBand from '../components/common/PageHeroBand';
 
 const formatDate = (value) =>
   value
@@ -48,6 +49,7 @@ export const Blog = () => {
       />
 
       <div className="relative overflow-x-clip pt-28 sm:pt-36 pb-20">
+        <PageHeroBand />
         <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
           <PageHeader
             eyebrow="Engineering Journal"

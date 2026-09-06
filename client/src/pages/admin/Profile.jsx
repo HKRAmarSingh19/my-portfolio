@@ -16,6 +16,7 @@ export const Profile = () => {
   const fileInputRef = useRef(null);
 
   const [name, setName] = useState('');
+  const [headline, setHeadline] = useState('');
   const [bio, setBio] = useState('');
   const [avatar, setAvatar] = useState('');
   const [pickedFile, setPickedFile] = useState(null);
@@ -34,6 +35,7 @@ export const Profile = () => {
   useEffect(() => {
     if (!profile) return;
     setName(profile.name || '');
+    setHeadline(profile.headline || '');
     setBio(profile.bio || '');
     setAvatar(profile.avatar || FALLBACK_AVATAR);
   }, [profile]);
@@ -86,7 +88,7 @@ export const Profile = () => {
         nextAvatar = uploaded.url;
       }
 
-      const { data: saved } = await profileApi.update({ name, bio, avatar: nextAvatar });
+      const { data: saved } = await profileApi.update({ name, headline, bio, avatar: nextAvatar });
       return saved;
     },
     onSuccess: (saved) => {
@@ -110,6 +112,7 @@ export const Profile = () => {
   const isDirty =
     Boolean(pickedFile) ||
     name !== (profile?.name || '') ||
+    headline !== (profile?.headline || '') ||
     bio !== (profile?.bio || '') ||
     avatar !== (profile?.avatar || '');
 
@@ -218,6 +221,23 @@ export const Profile = () => {
                 onChange={(event) => setName(event.target.value)}
                 className="w-full px-3.5 py-2.5 rounded-xl bg-neutral-950 border border-neutral-800 text-sm text-neutral-100 placeholder-neutral-600 focus:border-indigo-500/60 focus:outline-none transition-colors"
                 placeholder="Hkr. Amar Singh"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label
+                htmlFor="profile-headline"
+                className="block font-mono text-[11px] uppercase tracking-wider text-neutral-400"
+              >
+                Role / headline
+              </label>
+              <input
+                id="profile-headline"
+                type="text"
+                value={headline}
+                onChange={(event) => setHeadline(event.target.value)}
+                className="w-full px-3.5 py-2.5 rounded-xl bg-neutral-950 border border-neutral-800 text-sm text-neutral-100 placeholder-neutral-600 focus:border-indigo-500/60 focus:outline-none transition-colors"
+                placeholder="Full-Stack Software Engineer"
               />
             </div>
 

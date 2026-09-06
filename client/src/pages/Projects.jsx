@@ -16,7 +16,7 @@ import { projectsApi } from '../api/client';
 import PageTransition from '../components/layout/PageTransition';
 import SEO from '../components/common/SEO';
 import PageHeader from '../components/common/PageHeader';
-import { TechBadge, TechBadgeList } from '../components/common/TechBadge';
+import PageHeroBand from '../components/common/PageHeroBand';import { TechBadge, TechBadgeList } from '../components/common/TechBadge';
 
 /**
  * Gradients for projects with no cover image. Picked by a hash of the title so a
@@ -96,6 +96,7 @@ export const Projects = () => {
       />
 
       <div className="relative overflow-x-clip pt-28 sm:pt-36 pb-20">
+        <PageHeroBand />
         <div className="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
           <PageHeader
             eyebrow="Selected Work"

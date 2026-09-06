@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // In dev (Vite proxy) the API lives on the same origin at /api. When the
 // frontend is deployed separately (e.g. Vercel) and the API on Render, set
-// VITE_API_URL to the full API origin (e.g. https://portfolio-api.onrender.com).
+// VITE_API_URL to the full API origin (e.g. https://portfolio-api-i1b7.onrender.com).
 // The trailing /api is added here so all the route strings stay origin-relative.
 //
 // Normalise the base so it always ends in a single "/" — otherwise a

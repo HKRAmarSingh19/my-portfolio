@@ -13,10 +13,11 @@ import {
   CalendarClock,
   FolderGit2,
 } from 'lucide-react';
-import { projectsApi, skillsApi } from '../api/client';
+import { projectsApi, skillsApi, profileApi } from '../api/client';
 import PageTransition from '../components/layout/PageTransition';
 import SEO from '../components/common/SEO';
 import PageHeader from '../components/common/PageHeader';
+import PageHeroBand from '../components/common/PageHeroBand';
 import Counter from '../components/common/Counter';
 import { TechBadge } from '../components/common/TechBadge';
 
@@ -55,25 +56,30 @@ const PRINCIPLES = [
   },
 ];
 
-// Hand-curated rather than read from the skills collection: this is the everyday
-// working set, which is a deliberately shorter list than everything I can use.
-const TOOLKIT = [
-  {
-    label: 'Frontend',
-    accent: 'from-indigo-500 to-blue-500',
-    items: ['React', 'Next.js', 'Tailwind CSS', 'Framer Motion', 'TanStack Query', 'TypeScript'],
-  },
-  {
-    label: 'Backend & Data',
-    accent: 'from-violet-500 to-indigo-500',
-    items: ['Node.js', 'Express', 'MongoDB', 'Mongoose', 'Redis', 'PostgreSQL', 'Zod', 'JWT'],
-  },
-  {
-    label: 'DevOps & Tooling',
-    accent: 'from-sky-500 to-indigo-500',
-    items: ['Docker', 'GitHub Actions', 'Vercel', 'Vite', 'Linux', 'Figma'],
-  },
+// Mirrors the `category` enum on the Skill model, in intentional reading order.
+const CATEGORY_ORDER = [
+  'Frontend',
+  'Backend',
+  'Database',
+  'DevOps & Cloud',
+  'Languages',
+  'Tools & Workflow',
 ];
+
+/**
+ * Per-category identity for the Toolkit chips. Keeping the accents inside the
+ * indigo→violet→blue band matches the Skills page, so the two views read as
+ * the same family. Unknown categories fall back to the default accent.
+ */
+const CATEGORY_ACCENT = {
+  Frontend: 'from-indigo-500 to-blue-500',
+  Backend: 'from-violet-500 to-indigo-500',
+  Database: 'from-blue-500 to-cyan-500',
+  'DevOps & Cloud': 'from-sky-500 to-indigo-500',
+  Languages: 'from-fuchsia-500 to-violet-500',
+  'Tools & Workflow': 'from-purple-500 to-indigo-500',
+};
+const DEFAULT_ACCENT = 'from-indigo-500 to-violet-500';
 
 export const About = () => {
   // Counts come from the live collections so the numbers can't go stale the way
@@ -88,8 +94,30 @@ export const About = () => {
     queryFn: () => skillsApi.getAll({ grouped: 'true' }),
   });
 
+  // The intro's opening line is the admin-editable bio; the closing paragraph
+  // stays editorial. Falls back to hard-coded copy until the profile resolves.
+  const { data: profileData } = useQuery({
+    queryKey: ['publicProfile'],
+    queryFn: () => profileApi.get(),
+  });
+  const bio = profileData?.data?.data?.bio;
+
   const projects = projectsData?.data?.data || [];
-  const skills = Object.values(skillsData?.data?.data || {}).flat();
+  const groupedSkills = skillsData?.data?.data || {};
+  const skills = Object.values(groupedSkills).flat();
+
+  // Toolkit groups come from the live skills collection, so the everyday working
+  // set can never drift out of sync with the Skills page. Known categories read
+  // first, then anything else the data contains, each with its own accent.
+  const toolkit = [
+    ...CATEGORY_ORDER.filter((c) => groupedSkills[c]?.length),
+    ...Object.keys(groupedSkills).filter((c) => !CATEGORY_ORDER.includes(c) && groupedSkills[c]?.length),
+  ].map((category) => ({
+    label: category,
+    accent: CATEGORY_ACCENT[category] || DEFAULT_ACCENT,
+    items: (groupedSkills[category] || []).map((skill) => skill.name),
+  }));
+
   const maxYears = skills.reduce((max, s) => Math.max(max, s.yearsOfExperience || 0), 0);
 
   const facts = [
@@ -108,6 +136,7 @@ export const About = () => {
       />
 
       <div className="relative overflow-x-clip pt-28 sm:pt-36 pb-20">
+        <PageHeroBand />
         <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-16">
           <PageHeader
             eyebrow="Engineering Narrative"
@@ -116,13 +145,16 @@ export const About = () => {
           >
             <div className="prose-editorial space-y-4 text-base text-neutral-600 dark:text-neutral-300 sm:text-lg">
               <p>
-                I’m a Software Developer passionate about building modern applications, exploring AI/ML, and working with emerging technologies. I enjoy turning ideas into practical solutions and learning through real-world projects.
+                {bio ||
+                  "I’m a Software Developer passionate about building modern applications, exploring AI/ML, and working with emerging technologies. I enjoy turning ideas into practical solutions and learning through real-world projects."}
               </p>
-              <p>
-                I believe great software emerges at the intersection of rigorous engineering
-                fundamentals and restrained design. I enjoy turning complex business requirements
-                into elegant, accessible, and fast web products that users love interacting with.
-              </p>
+              {!bio && (
+                <p>
+                  I believe great software emerges at the intersection of rigorous engineering
+                  fundamentals and restrained design. I enjoy turning complex business requirements
+                  into elegant, accessible, and fast web products that users love interacting with.
+                </p>
+              )}
             </div>
           </PageHeader>
 
@@ -221,35 +253,41 @@ export const About = () => {
               </h2>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-              {TOOLKIT.map((group, groupIndex) => (
-                <motion.div
-                  key={group.label}
-                  initial={{ opacity: 0, y: 16 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true, margin: '-40px' }}
-                  transition={{ duration: 0.4, delay: groupIndex * 0.08 }}
-                  className="rounded-2xl border border-neutral-200 dark:border-neutral-800/80 bg-neutral-50 dark:bg-neutral-900/60 p-5 space-y-4"
-                >
-                  <div className="space-y-2">
-                    <h3 className="font-mono text-xs uppercase tracking-wider text-neutral-900 dark:text-white">
-                      {group.label}
-                    </h3>
-                    <div
-                      aria-hidden="true"
-                      className={`h-px w-full bg-gradient-to-r ${group.accent} opacity-40`}
-                    />
-                  </div>
-                  {/* Logo chips instead of a bulleted list — the marks are what
-                      make a stack readable at a glance. */}
-                  <div className="flex flex-wrap gap-1.5">
-                    {group.items.map((item) => (
-                      <TechBadge key={item} name={item} size="sm" />
-                    ))}
-                  </div>
-                </motion.div>
-              ))}
-            </div>
+            {toolkit.length > 0 ? (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                {toolkit.map((group, groupIndex) => (
+                  <motion.div
+                    key={group.label}
+                    initial={{ opacity: 0, y: 16 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true, margin: '-40px' }}
+                    transition={{ duration: 0.4, delay: groupIndex * 0.08 }}
+                    className="rounded-2xl border border-neutral-200 dark:border-neutral-800/80 bg-neutral-50 dark:bg-neutral-900/60 p-5 space-y-4"
+                  >
+                    <div className="space-y-2">
+                      <h3 className="font-mono text-xs uppercase tracking-wider text-neutral-900 dark:text-white">
+                        {group.label}
+                      </h3>
+                      <div
+                        aria-hidden="true"
+                        className={`h-px w-full bg-gradient-to-r ${group.accent} opacity-40`}
+                      />
+                    </div>
+                    {/* Logo chips instead of a bulleted list — the marks are what
+                        make a stack readable at a glance. */}
+                    <div className="flex flex-wrap gap-1.5">
+                      {group.items.map((item) => (
+                        <TechBadge key={item} name={item} size="sm" />
+                      ))}
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-neutral-500 dark:text-neutral-400">
+                No skills have been added to the database yet — the toolkit groups will appear here automatically once they are.
+              </p>
+            )}
           </section>
 
           <div className="relative flex flex-col justify-between gap-6 overflow-hidden rounded-3xl border border-neutral-800 bg-neutral-900 p-8 text-white sm:flex-row sm:items-center">

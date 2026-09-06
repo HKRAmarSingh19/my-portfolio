@@ -23,17 +23,18 @@ services:
   - type: web
     name: portfolio-api
     runtime: node
-    rootDir: .
+    rootDir: server
     plan: free
     healthCheckPath: /api/health
 
     # This service is the API ONLY — the React frontend is hosted separately on
-    # Vercel and calls this origin (VITE_API_URL). So the build installs just the
-    # server (and the root workspace) and does NOT build client/dist. The server
-    # skips its static-client block because SERVE_CLIENT is not set.
-    buildCommand: npm install && npm install --prefix server
+    # Vercel and calls this origin (VITE_API_URL). Deploy root is the server
+    # directory, so the build installs just the server and never builds
+    # client/dist. The server skips its static-client block because
+    # SERVE_CLIENT is not set.
+    buildCommand: npm install
 
-    # `npm start` -> `npm start --prefix server` -> node server.js.
+    # `npm start` -> node server.js (deploy root IS the server dir).
     # Render sets NODE_ENV=production and PORT automatically.
     startCommand: npm start
 

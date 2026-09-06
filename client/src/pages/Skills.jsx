@@ -19,7 +19,7 @@ import { skillsApi } from '../api/client';
 import PageTransition from '../components/layout/PageTransition';
 import SEO from '../components/common/SEO';
 import PageHeader from '../components/common/PageHeader';
-import Counter from '../components/common/Counter';
+import PageHeroBand from '../components/common/PageHeroBand';import Counter from '../components/common/Counter';
 import SkillCard from '../components/skills/SkillCard';
 import ProficiencyRing from '../components/skills/ProficiencyRing';
 import TechMarquee from '../components/skills/TechMarquee';
@@ -115,6 +115,7 @@ export const Skills = () => {
       />
 
       <div className="relative overflow-x-clip pt-28 sm:pt-36 pb-20">
+        <PageHeroBand />
         <div className="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-16">
           <PageHeader
             eyebrow="Capabilities"
