@@ -46,6 +46,23 @@ export const AdminLayout = () => {
     }
   }, [isAuthenticated, loading, navigate]);
 
+  // Close the mobile drawer on any route change (covers browser back /
+  // direct navigation, not just the in-drawer nav links).
+  React.useEffect(() => {
+    setMobileOpen(false);
+  }, [location.pathname]);
+
+  // Lock body scroll while the mobile drawer is open so the content behind
+  // the backdrop can't scroll under it.
+  React.useEffect(() => {
+    if (!mobileOpen) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [mobileOpen]);
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-neutral-950 text-white font-mono text-sm">
@@ -76,13 +93,37 @@ export const AdminLayout = () => {
         </button>
       </div>
 
+      {/* Tap-outside backdrop — only on mobile, only when the drawer is open.
+          Closes the drawer and blocks interaction with the content beneath. */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-black/50 md:hidden"
+          onClick={() => setMobileOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
       <aside
         className={`fixed md:static inset-y-0 left-0 z-40 w-64 bg-neutral-900/95 md:bg-neutral-900 border-r border-neutral-800 flex flex-col justify-between p-5 transition-transform duration-200 ${
           mobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
         }`}
       >
         <div className="space-y-6">
-          <div className="flex items-center gap-3 px-2">
+          <div className="flex items-center justify-between gap-3 px-2 md:hidden">
+            <div className="flex items-center gap-2 font-sans font-bold text-white">
+              <ShieldCheck className="w-5 h-5 text-indigo-400" />
+              <span>Admin Portal</span>
+            </div>
+            <button
+              onClick={() => setMobileOpen(false)}
+              aria-label="Close admin menu"
+              className="p-2 text-neutral-400 hover:text-white"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          <div className="hidden md:flex items-center gap-3 px-2">
             <div className="w-9 h-9 rounded-xl bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
               <ShieldCheck className="w-5 h-5" />
             </div>

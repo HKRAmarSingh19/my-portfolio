@@ -67,7 +67,7 @@ export const ProfilePortraitCarousel = ({
 
   return (
     <div
-      className={`relative ${className}`}
+      className={`relative group ${className}`}
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
       onFocus={() => setPaused(true)}
@@ -93,7 +93,7 @@ export const ProfilePortraitCarousel = ({
           type="button"
           onClick={() => go(-1)}
           aria-label="Previous photograph"
-          className="absolute left-2 top-1/2 z-10 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-full bg-black/50 text-white opacity-0 backdrop-blur transition-opacity group-hover:opacity-100 hover:bg-black/70"
+          className="absolute left-2 top-1/2 z-10 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-full bg-black/40 text-white opacity-70 backdrop-blur transition-opacity hover:opacity-100 focus-visible:opacity-100 hover:bg-black/60"
         >
           <ChevronLeft className="h-4 w-4" />
         </button>
@@ -101,7 +101,7 @@ export const ProfilePortraitCarousel = ({
           type="button"
           onClick={() => go(1)}
           aria-label="Next photograph"
-          className="absolute right-2 top-1/2 z-10 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-full bg-black/50 text-white opacity-0 backdrop-blur transition-opacity group-hover:opacity-100 hover:bg-black/70"
+          className="absolute right-2 top-1/2 z-10 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-full bg-black/40 text-white opacity-70 backdrop-blur transition-opacity hover:opacity-100 focus-visible:opacity-100 hover:bg-black/60"
         >
           <ChevronRight className="h-4 w-4" />
         </button>

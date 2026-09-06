@@ -151,7 +151,7 @@ export const Home = () => {
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
-              className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-indigo-500/20 bg-indigo-500/5 text-xs font-mono text-neutral-600 dark:text-neutral-300"
+              className="inline-flex flex-wrap items-center justify-center gap-x-2 gap-y-1 px-3.5 py-1.5 rounded-full border border-indigo-500/20 bg-indigo-500/5 text-xs font-mono text-neutral-600 dark:text-neutral-300 max-w-full"
             >
               {/* Green is reserved for live status across the site — one status dot here. */}
               <span className="relative flex h-2 w-2">
@@ -247,7 +247,7 @@ export const Home = () => {
             {/* Overhangs the portrait so the knot and particles read through the
                 margins. pointer-events-none keeps the portrait tilt interactive —
                 the scene tracks the window pointer, so parallax still works. */}
-            <Scene3D className="pointer-events-none absolute -inset-8 sm:-inset-12 opacity-70 dark:opacity-80" />
+            <Scene3D className="pointer-events-none hidden lg:block absolute -inset-8 sm:-inset-12 opacity-70 dark:opacity-80" />
             <div className="relative mx-auto w-full max-w-[15rem] sm:max-w-xs lg:max-w-none">
               {featuredProfileImages.length > 0 ? (
                 <ProfilePortraitCarousel

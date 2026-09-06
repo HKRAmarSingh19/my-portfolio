@@ -30,7 +30,7 @@
   .prose-editorial pre { @apply rounded-xl overflow-x-auto my-6 p-4 bg-neutral-950 border border-neutral-800 text-sm; }
   .prose-editorial pre code { @apply bg-transparent text-neutral-100 p-0; }
   .prose-editorial img { @apply rounded-2xl my-8 w-full; }
-  .prose-editorial table { @apply w-full border-collapse text-sm my-6; }
+  .prose-editorial table { @apply block w-full overflow-x-auto border-collapse text-sm my-6; }
   .prose-editorial th { @apply font-mono text-xs uppercase tracking-wider bg-neutral-100 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 px-4 py-2 text-left text-neutral-600 dark:text-neutral-400; }
   .prose-editorial td { @apply border border-neutral-200 dark:border-neutral-800 px-4 py-2 text-neutral-700 dark:text-neutral-300; }
   .prose-invert p, .prose-invert li, .prose-invert blockquote { @apply text-neutral-300; }
