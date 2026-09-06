@@ -238,7 +238,7 @@ export const Home = () => {
             initial={{ opacity: 0, scale: 0.94 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 1, delay: 0.35, ease: [0.22, 1, 0.36, 1] }}
-            className="lg:col-span-5 relative order-first lg:order-last"
+            className="lg:col-span-5 relative order-first lg:order-last flex flex-col items-center"
           >
             <div
               aria-hidden="true"
@@ -248,7 +248,7 @@ export const Home = () => {
                 margins. pointer-events-none keeps the portrait tilt interactive —
                 the scene tracks the window pointer, so parallax still works. */}
             <Scene3D className="pointer-events-none absolute -inset-8 sm:-inset-12 opacity-70 dark:opacity-80" />
-            <div className="relative mx-auto w-full max-w-[15rem] sm:max-w-xs lg:max-w-none pb-4">
+            <div className="relative mx-auto w-full max-w-[15rem] sm:max-w-xs lg:max-w-none">
               {featuredProfileImages.length > 0 ? (
                 <ProfilePortraitCarousel
                   images={featuredProfileImages}
@@ -259,6 +259,22 @@ export const Home = () => {
                 <ProfilePortrait src={profile.avatar} name={profile.name} />
               )}
             </div>
+
+            {/* Identity card — clean info chip under the portrait, raised above
+                the aura overlay so it stays readable on any background. */}
+            <motion.div
+              initial={{ opacity: 0, y: 14 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 1.1 }}
+              className="relative mt-6 w-full max-w-xs rounded-2xl border border-neutral-200/70 dark:border-neutral-800/70 bg-white/70 dark:bg-neutral-900/70 backdrop-blur px-4 py-3 text-center shadow-lift"
+            >
+              <p className="truncate font-display text-sm font-semibold text-neutral-900 dark:text-white">
+                {profile.name}
+              </p>
+              <p className="mt-0.5 truncate font-mono text-[11px] uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
+                {profile.headline}
+              </p>
+            </motion.div>
           </motion.div>
         </div>
 
@@ -516,10 +532,13 @@ export const Home = () => {
                   whileInView={{ opacity: 1, scale: 1, y: 0 }}
                   viewport={{ once: true }}
                   transition={{ duration: 0.4, delay: index * 0.05, ease: [0.22, 1, 0.36, 1] }}
-                  whileHover={prefersReducedMotion ? undefined : { y: -6, transition: { duration: 0.2 } }}
-                  className="group relative p-4 rounded-xl glass flex flex-col justify-between gap-3 hover:border-indigo-500/40 hover:shadow-glow transition-all duration-300 overflow-hidden"
+                  whileHover={prefersReducedMotion ? undefined : { y: -5, transition: { duration: 0.2 } }}
+                  className="group relative flex flex-col items-start gap-3 rounded-2xl border border-neutral-200/70 dark:border-neutral-800/70 bg-white/70 dark:bg-neutral-900/70 p-4 shadow-sm backdrop-blur transition-all duration-300 hover:border-indigo-500/40 hover:shadow-glow overflow-hidden"
                 >
+                  {/* Hover accent */}
                   <div className="absolute inset-x-0 -bottom-px h-px bg-gradient-to-r from-transparent via-indigo-500 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                  {/* Soft corner glow on hover */}
+                  <div className="pointer-events-none absolute -right-8 -top-8 h-20 w-20 rounded-full bg-indigo-500/10 blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" aria-hidden="true" />
                   <div
                     style={tileStyle}
                     className={`grid h-11 w-11 place-items-center rounded-xl transition-transform duration-300 group-hover:scale-105 ${
@@ -534,11 +553,13 @@ export const Home = () => {
                       />
                     ) : null}
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <h4 className="text-xs font-semibold text-neutral-900 dark:text-white line-clamp-1">
                       {skill.name}
                     </h4>
-                    <span className="text-[10px] font-mono text-neutral-400">{skill.category}</span>
+                    <span className="mt-0.5 block text-[10px] font-mono uppercase tracking-wider text-neutral-400">
+                      {skill.category}
+                    </span>
                   </div>
                 </motion.div>
               );
