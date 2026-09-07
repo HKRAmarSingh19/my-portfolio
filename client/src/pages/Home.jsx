@@ -19,6 +19,32 @@ import ImageViewer from '../components/common/ImageViewer';
 import { TechBadgeList } from '../components/common/TechBadge';
 import { resolveTechIcon } from '../components/common/techIcons';
 
+// Renders the admin-editable bio with the same blue emphasis on key terms that
+// the hardcoded fallback uses, so the DB-driven copy keeps the visual emphasis.
+const HIGHLIGHT_TERMS = ['software', 'full-stack applications', 'Generative & Agentic AI'];
+
+const highlightBio = (bio) => {
+  if (!bio) return null;
+  // Split on the highlight terms (case-insensitive) and wrap matches in a
+  // styled span; keep everything else plain.
+  const parts = [];
+  let rest = bio;
+  let key = 0;
+  HIGHLIGHT_TERMS.forEach((term) => {
+    const idx = rest.toLowerCase().indexOf(term.toLowerCase());
+    if (idx === -1) return;
+    parts.push(<span key={key++}>{rest.slice(0, idx)}</span>);
+    parts.push(
+      <span key={key++} className="text-blue-500 font-semibold">
+        {rest.slice(idx, idx + term.length)}
+      </span>
+    );
+    rest = rest.slice(idx + term.length);
+  });
+  parts.push(<span key={key++}>{rest}</span>);
+  return parts;
+};
+
 export const Home = () => {
   const prefersReducedMotion = useReducedMotion();
 
@@ -192,7 +218,7 @@ export const Home = () => {
               className="text-lg sm:text-xl text-neutral-600 dark:text-neutral-300 max-w-2xl leading-relaxed font-light"
             >
               <p className="text-white-600">
-                {profile.bio || (
+                {profile.bio ? highlightBio(profile.bio) : (
                   <>
                     I’m Hkr. Amar Singh — a Computer Science student who loves turning complex problems into clean, scalable{" "}
                     <span className="text-blue-500 font-semibold">software</span>.
