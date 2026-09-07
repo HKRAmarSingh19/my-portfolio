@@ -39,8 +39,8 @@ export const ProfilePortrait = ({
     .toUpperCase();
 
   return (
-    <TiltCard intensity={6} lift={8} className={`rounded-[2rem] ${className}`}>
-      <div className="relative aspect-square overflow-hidden rounded-[2rem] border border-neutral-200/80 dark:border-neutral-800 bg-neutral-100 dark:bg-neutral-900 shadow-lift ring-1 ring-black/5 dark:ring-white/10">
+    <TiltCard intensity={6} lift={8} className={`rounded-full ${className}`}>
+      <div className="relative aspect-square overflow-hidden rounded-full border border-neutral-200/80 dark:border-neutral-800 bg-neutral-100 dark:bg-neutral-900 shadow-lift ring-1 ring-black/5 dark:ring-white/10">
         {hasImage ? (
           <img
             src={src}
