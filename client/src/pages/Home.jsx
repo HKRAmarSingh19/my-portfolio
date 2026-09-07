@@ -273,7 +273,7 @@ export const Home = () => {
             {/* Overhangs the portrait so the knot and particles read through the
                 margins. pointer-events-none keeps the portrait tilt interactive —
                 the scene tracks the window pointer, so parallax still works. */}
-            <Scene3D className="pointer-events-none hidden lg:block absolute -inset-8 sm:-inset-12 opacity-70 dark:opacity-80" />
+            <Scene3D className="pointer-events-none absolute -inset-8 sm:-inset-12 opacity-40 sm:opacity-70 dark:opacity-80" />
             <div className="relative mx-auto w-full max-w-[15rem] sm:max-w-xs lg:max-w-none">
               {featuredProfileImages.length > 0 ? (
                 <ProfilePortraitCarousel
