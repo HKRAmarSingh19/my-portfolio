@@ -191,7 +191,7 @@ export const Home = () => {
               <span className="whitespace-nowrap">AI Enthusiast</span>
             </motion.div>
 
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-display font-bold tracking-tight text-neutral-900 dark:text-white leading-[1.05]">
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-display font-bold tracking-tight text-neutral-900 dark:text-white leading-[1.05] w-full max-w-full break-words [overflow-wrap:anywhere]">
               <AnimatedText text="<Building" />{' '}
               <motion.span
                 initial={{ opacity: 0, y: '0.25em' }}
