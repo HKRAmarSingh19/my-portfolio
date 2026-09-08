@@ -270,11 +270,11 @@ export const Home = () => {
               aria-hidden="true"
               className="absolute inset-0 rounded-full bg-indigo-500/10 blur-3xl scale-90"
             />
-            {/* Overhangs the portrait so the knot and particles read through the
-                margins. pointer-events-none keeps the portrait tilt interactive —
-                the scene tracks the window pointer, so parallax still works. */}
-            <Scene3D className="pointer-events-none absolute -inset-8 sm:-inset-12 opacity-40 sm:opacity-70 dark:opacity-80" />
+            {/* The 3D knot + particles overhang the portrait box itself (not the wider
+                column), so the globe stays centered on the circular photo. The
+                portrait wrapper is relative so the scene anchors to it. */}
             <div className="relative mx-auto w-full max-w-[15rem] sm:max-w-xs lg:max-w-none">
+              <Scene3D className="pointer-events-none absolute -inset-8 sm:-inset-12 opacity-40" />
               {featuredProfileImages.length > 0 ? (
                 <ProfilePortraitCarousel
                   images={featuredProfileImages}

@@ -50,6 +50,7 @@ export const ProfilePortrait = ({
             decoding="async"
             onError={() => setFailed(true)}
             className="h-full w-full object-cover object-center"
+            style={{ transform: 'scale(1.3)' }}
           />
         ) : (
           <div className="grid h-full w-full place-items-center bg-gradient-to-br from-neutral-200 to-neutral-300 dark:from-neutral-800 dark:to-neutral-900">
@@ -59,23 +60,10 @@ export const ProfilePortrait = ({
           </div>
         )}
 
-        {/* Scrim keeps the caption readable over a light shirt / bright wall. */}
-        <div
-          aria-hidden="true"
-          className="absolute inset-x-0 bottom-0 h-2/5 bg-gradient-to-t from-neutral-950/80 via-neutral-950/25 to-transparent"
-        />
-
         <div
           aria-hidden="true"
           className="pointer-events-none absolute inset-0 grain opacity-40"
         />
-
-        <div className="absolute inset-x-4 bottom-4 min-w-0">
-          <p className="truncate font-display text-sm font-semibold text-white">{name}</p>
-          <p className="truncate font-mono text-[10px] uppercase tracking-wider text-neutral-300">
-            {headline}
-          </p>
-        </div>
       </div>
     </TiltCard>
   );
