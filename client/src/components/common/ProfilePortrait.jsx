@@ -40,7 +40,15 @@ export const ProfilePortrait = ({
 
   return (
     <TiltCard intensity={6} lift={8} className={`rounded-full ${className}`}>
-      <div className="relative aspect-square overflow-hidden rounded-full border border-neutral-200/80 dark:border-neutral-800 bg-neutral-100 dark:bg-neutral-900 shadow-lift ring-1 ring-black/5 dark:ring-white/10">
+      {/* Outer halo — the glow lives here so overflow-hidden on the photo circle
+          can't clip it. The halo sits slightly larger than the image. */}
+      <div
+        className="rounded-full p-[5%]"
+        style={{ boxShadow: '0 0 60px -12px rgba(99, 102, 241, 0.6), 0 0 120px -40px rgba(99, 102, 241, 0.5)' }}
+      >
+      <div
+        className="relative aspect-square overflow-hidden rounded-full border border-neutral-200/80 dark:border-neutral-800 bg-neutral-100 dark:bg-neutral-900 shadow-lift ring-1 ring-black/5 dark:ring-white/10"
+      >
         {hasImage ? (
           <img
             src={src}
@@ -64,6 +72,7 @@ export const ProfilePortrait = ({
           aria-hidden="true"
           className="pointer-events-none absolute inset-0 grain opacity-40"
         />
+      </div>
       </div>
     </TiltCard>
   );

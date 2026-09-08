@@ -184,7 +184,7 @@ export const Home = () => {
                 <span className="absolute inline-flex h-full w-full rounded-full bg-green-500 animate-pulse-ring" />
                 <span className="relative inline-flex h-2 w-2 rounded-full bg-green-500" />
               </span>
-              <span className="whitespace-nowrap">B.Tech CSE ’28</span>
+              <span className="whitespace-nowrap">B.Tech CSE ’3rd Year</span>
               <span aria-hidden="true" className="text-neutral-300 dark:text-neutral-600">•</span>
               <span className="whitespace-nowrap">Backend Developer</span>
               <span aria-hidden="true" className="text-neutral-300 dark:text-neutral-600">•</span>
@@ -203,6 +203,7 @@ export const Home = () => {
               </motion.span>{' '}
 
               <AnimatedText text="System & " delay={0.5} />{' '}
+              {/* <AnimatedText text="Advanced " delay={0.6} />{' '} */}
               <span className="italic text-indigo-600 dark:text-indigo-400">
 
                 <AnimatedText text="AI-Powered" delay={0.75} />
@@ -268,7 +269,7 @@ export const Home = () => {
           >
             <div
               aria-hidden="true"
-              className="absolute inset-0 rounded-full bg-indigo-500/10 blur-3xl scale-90"
+              className="absolute inset-0 rounded-full bg-indigo-500/15 dark:bg-violet-500/10 blur-3xl scale-110"
             />
             {/* The 3D knot + particles overhang the portrait box itself (not the wider
                 column), so the globe stays centered on the circular photo. The
