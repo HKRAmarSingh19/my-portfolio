@@ -192,7 +192,7 @@ export const Home = () => {
             </motion.div>
 
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-display font-bold tracking-tight text-neutral-900 dark:text-white leading-[1.05]">
-              <AnimatedText text="< Building" />{' '}
+              <AnimatedText text="<Building" />{' '}
               <motion.span
                 initial={{ opacity: 0, y: '0.25em' }}
                 animate={{ opacity: 1, y: 0 }}
@@ -202,7 +202,7 @@ export const Home = () => {
                 Scalable
               </motion.span>{' '}
 
-              <AnimatedText text="System & " delay={0.5} />{' '}
+              <AnimatedText text="System &" delay={0.5} />{' '}
               {/* <AnimatedText text="Advanced " delay={0.6} />{' '} */}
               <span className="italic text-indigo-600 dark:text-indigo-400">
 
