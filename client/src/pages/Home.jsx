@@ -295,10 +295,10 @@ export const Home = () => {
               transition={{ duration: 0.6, delay: 1.1 }}
               className="relative mt-6 w-full max-w-xs rounded-2xl border border-neutral-200/70 dark:border-neutral-800/70 bg-white/70 dark:bg-neutral-900/70 backdrop-blur px-4 py-3 text-center shadow-lift"
             >
-              <p className="truncate font-display text-sm font-semibold text-neutral-900 dark:text-white">
+              <p className="font-display text-sm font-semibold text-neutral-900 dark:text-white leading-snug">
                 {profile.name}
               </p>
-              <p className="mt-0.5 truncate font-mono text-[11px] uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
+              <p className="mt-0.5 font-mono text-[11px] uppercase tracking-wider text-indigo-600 dark:text-indigo-400 leading-snug">
                 {profile.headline}
               </p>
             </motion.div>
