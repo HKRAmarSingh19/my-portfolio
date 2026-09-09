@@ -34,7 +34,9 @@ export const Navbar = ({ onOpenCommandPalette }) => {
     <header className={`fixed top-0 left-0 right-0 z-40 transition-all duration-300 ${scrolled ? 'bg-white/80 dark:bg-neutral-950/80 backdrop-blur-md border-b border-neutral-200/80 dark:border-neutral-800/80 py-3.5' : 'bg-transparent py-5'}`}>
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
         <Link to="/" className="group flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-display font-bold text-sm transition-transform duration-300 group-hover:scale-105">Hkr</div>
+          <div className="w-9 h-9 rounded-full ring-2 ring-indigo-500/60 dark:ring-indigo-400/50 overflow-hidden transition-transform duration-300 group-hover:scale-105">
+            <img src="/favicon.png" alt="" className="h-full w-full object-cover" />
+          </div>
           <div className="flex flex-col">
             <span className="font-display font-bold text-base tracking-tight text-neutral-900 dark:text-white group-hover:text-indigo-500 transition-colors">Hkr. Amar Singh</span>
             <span className="text-[10px] tracking-widest uppercase font-mono text-neutral-500 dark:text-neutral-400">Software Engineer</span>
