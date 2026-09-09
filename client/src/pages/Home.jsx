@@ -155,7 +155,7 @@ export const Home = () => {
 
   return (
     <PageTransition>
-      <SEO title="Software Engineer & System Architect" description="Minimal editorial portfolio of Amar Singh — Full-Stack MERN Software Engineer." />
+      <SEO title="Full-Stack Developer" description="Hkr Amar Singh — Full-Stack Developer building clean, scalable MERN applications." />
 
       {/* Anchors the page the same way as the other routes: overflow-x-clip keeps
           the fixed header's anchor-scroll working (overflow-hidden would trap it),

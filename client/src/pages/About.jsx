@@ -131,7 +131,7 @@ export const About = () => {
   return (
     <PageTransition>
       <SEO
-        title="About Me & Engineering Philosophy"
+        title="About"
         description="Learn more about Amar Singh, full-stack software engineer, design philosophy, and career journey."
       />
 
