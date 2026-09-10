@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowRight, ArrowUpRight, Sparkles, Github, Images, X, ArrowLeftRight } from 'lucide-react';
-import { projectsApi, blogApi, skillsApi, profileApi, galleryApi } from '../api/client';
+import { projectsApi, blogApi, skillsApi, profileApi, galleryApi, codolioApi } from '../api/client';
+import CodolioStats from '../components/home/CodolioStats';
 import PageTransition from '../components/layout/PageTransition';
 import SEO from '../components/common/SEO';
 import Scene3D from '../components/three/Scene3D';
@@ -82,6 +83,16 @@ export const Home = () => {
   });
 
   const profile = profileData?.data?.data || {};
+
+  // Live competitive-programming numbers proxied from Codolio (server-cached).
+  // staleTime mirrors the server TTL — no point refetching sooner.
+  const { data: codolioData } = useQuery({
+    queryKey: ['codolioStats'],
+    queryFn: () => codolioApi.getStats(),
+    staleTime: 15 * 60 * 1000,
+    retry: 1,
+  });
+  const codolio = codolioData?.data?.data || {};
 
   // Featured profile photos rotate in the hero carousel (only on Home). Falls
   // back to the single avatar portrait when none are featured.
@@ -434,6 +445,9 @@ export const Home = () => {
           </div>
         )}
       </section>
+
+      {/* ── Live coding stats (Codolio) ──────────────────────────────────── */}
+      <CodolioStats data={codolio} />
 
       {/* ── Featured gallery ─────────────────────────────────────────────── */}
       {featuredGallery.length > 0 && (

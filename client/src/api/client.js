@@ -125,6 +125,11 @@ export const profileApi = {
   update: (data) => api.put('/auth/update-details', data),
 };
 
+export const codolioApi = {
+  // Public read of the owner's live coding stats (proxied server-side).
+  getStats: () => api.get('/codolio'),
+};
+
 export const uploadApi = {
   uploadImage: (formData) =>
     api.post('/upload', formData, {
