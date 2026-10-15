@@ -132,44 +132,15 @@ Then configure the variables shown in [Step 2](#2-environment-variables):
 
 ---
 
-## ☁️ AWS S3 Media Storage
 
-Photos & videos are stored in an **AWS S3 bucket** (public-read) instead of the server's local disk — this is required for serverless/ephemeral hosts like Render that reset their filesystem on deploy. Multer holds uploads in memory and streams them to S3; the DB stores the **absolute S3 URL** (`https://<bucket>.s3.<region>.amazonaws.com/<key>`), which the client renders directly.
 
-Setup (one-time, in the [AWS Console](https://console.aws.amazon.com)):
-1. Create an **S3 bucket** and apply a **public-read bucket policy** so gallery visitors can load the media.
-2. Create an **IAM user** with `AmazonS3FullAccess` and generate an **Access Key**.
-3. Add to `server/.env`:
-   ```env
-   AWS_ACCESS_KEY_ID=...
-   AWS_SECRET_ACCESS_KEY=...
-   AWS_REGION=<your-region>
-   AWS_BUCKET=<your-bucket-name>
-   ```
-   The public URL for each key follows the standard `https://<bucket>.s3.<region>.amazonaws.com/<key>` format.
-
-No client changes are needed — every media consumer already renders absolute URLs verbatim.
-
----
-
-## 🎬 AWS MediaConvert Adaptive HLS Streaming
-
-Videos are transcoded into a **multi-bitrate HLS ABR ladder** and streamed with **hls.js**, which adapts quality to the visitor's bandwidth and buffers ahead for smooth scrubbing. The pipeline is fully server-side:
-
-1. A video is uploaded to S3.
-2. The server submits a one-time **MediaConvert job** using the shared `PortfolioHlsAbr` job template (multi-resolution/bitrate ABR output group + HLS master playlist).
-3. On success, the server stores the master `.m3u8` URL on the gallery item, and the client plays it through **hls.js** (falling back to direct `src` where HLS is unsupported).
-
-Setup (one-time, in the [AWS Console](https://console.aws.amazon.com)):
-1. Create an IAM role MediaConvert can assume to read S3 input and write S3 output, e.g. `MediaConvertForPortfolio`.
-2. Register the job template — either via the Console, or programmatically with the included helper: `node server/scripts/create-mc-template.mjs` (creates `PortfolioHlsAbr`).
-3. Add to `server/.env`:
-   ```env
-   AWS_MEDIACONVERT_ROLE_ARN=arn:aws:iam::<account-id>:role/MediaConvertForPortfolio
-   AWS_MEDIACONVERT_JOB_TEMPLATE=PortfolioHlsAbr
-   ```
-
----
+# Abhi tak humne ye complete kiya hai:
+- ✅ Cloudflare R2 connection aur test upload verify kiya.
+- ✅ Images aur videos ke liye R2 upload flow configure kiya.
+- ✅ deleteObjectsByPrefix() ko temporarily disable kiya.
+- ✅ Gallery deletion mein media cleanup temporarily disable kiya, taaki files accidentally delete na hon.
+- ✅ AWS MediaConvert dependency ko upload route se hata diya.
+- ✅ Backend successfully start ho raha hai aur uploads work kar rahe hain.
 
 ## 🌐 Social Feeds (Instagram & LinkedIn)
 
