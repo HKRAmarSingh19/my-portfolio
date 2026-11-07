@@ -107,6 +107,10 @@ export const messagesApi = {
   toggleRead: (id, read) => api.patch(`/messages/${id}/read`, { read }),
   toggleStar: (id) => api.patch(`/messages/${id}/star`),
   delete: (id) => api.delete(`/messages/${id}`),
+  // Gmail OAuth connection and reply actions (admin-only).
+  getGmailStatus: () => api.get('/messages/gmail/status'),
+  connectGmail: () => api.get('/messages/gmail/connect'),
+  sendReply: (id, reply) => api.post(`/messages/${id}/reply`, { reply }),
 };
 
 export const statsApi = {

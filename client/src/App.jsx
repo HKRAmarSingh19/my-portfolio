@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Routes, Route, useLocation } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import Terms from "./pages/Terms";
+
 import { trackPageView } from './utils/tracker';
 
 import Navbar from './components/layout/Navbar';
@@ -82,40 +85,55 @@ export function App() {
           <Intro onComplete={() => setShowIntro(false)} />
         ) : (
           <ErrorBoundary>
-          <AnimatePresence mode="wait">
+            <AnimatePresence mode="wait">
 
-            <Routes location={location} key={location.pathname}>
-              <Route path="/" element={<Home />} />
-              <Route path="/about" element={<About />} />
-              <Route path="/projects" element={<Projects />} />
-              <Route path="/projects/:slug" element={<ProjectDetail />} />
-              <Route path="/skills" element={<Skills />} />
-              <Route path="/gallery" element={<Gallery />} />
-              <Route path="/gallery/:id" element={<GalleryItemDetail />} />
-              <Route path="/blog" element={<Blog />} />
-              <Route path="/blog/:slug" element={<BlogPost />} />
-              <Route path="/resume" element={<Resume />} />
-              <Route path="/contact" element={<Contact />} />
 
-              <Route path="/admin/login" element={<Login />} />
+              <Routes location={location} key={location.pathname}>
+                <Route path="/" element={<Home />} />
+                <Route path="/about" element={<About />} />
+                <Route path="/projects" element={<Projects />} />
+                <Route path="/projects/:slug" element={<ProjectDetail />} />
+                <Route path="/skills" element={<Skills />} />
+                <Route path="/gallery" element={<Gallery />} />
+                <Route path="/gallery/:id" element={<GalleryItemDetail />} />
+                <Route path="/blog" element={<Blog />} />
+                <Route path="/blog/:slug" element={<BlogPost />} />
+                <Route path="/resume" element={<Resume />} />
+                <Route path="/contact" element={<Contact />} />
 
-              <Route path="/admin" element={<AdminLayout />}>
-                <Route index element={<Dashboard />} />
-                <Route path="profile" element={<Profile />} />
-                <Route path="projects" element={<ManageProjects />} />
-                <Route path="blog" element={<ManageBlog />} />
-                <Route path="skills" element={<ManageSkills />} />
-                <Route path="experience" element={<ManageExperiences />} />
-                <Route path="gallery" element={<ManageGallery />} />
-                <Route path="instagram" element={<ManageInstagram />} />
-                <Route path="linkedin" element={<ManageLinkedIn />} />
-                <Route path="messages" element={<Messages />} />
-                <Route path="analytics" element={<Analytics />} />
-              </Route>
+                {/* Public legal pages */}
+                <Route
+                  path="/privacy-policy"
+                  element={<PrivacyPolicy />}
+                />
+                <Route
+                  path="/terms"
+                  element={<Terms />}
+                />
 
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </AnimatePresence>
+                <Route path="dashboard" element={<Dashboard />} />
+
+                <Route path="/admin/login" element={<Login />} />
+
+                {/* Admin routes */}
+                <Route path="/admin" element={<AdminLayout />}>
+                  <Route index element={<Dashboard />} />
+                  <Route path="profile" element={<Profile />} />
+                  <Route path="projects" element={<ManageProjects />} />
+                  <Route path="blog" element={<ManageBlog />} />
+                  <Route path="skills" element={<ManageSkills />} />
+                  <Route path="experience" element={<ManageExperiences />} />
+                  <Route path="gallery" element={<ManageGallery />} />
+                  <Route path="instagram" element={<ManageInstagram />} />
+                  <Route path="linkedin" element={<ManageLinkedIn />} />
+                  <Route path="messages" element={<Messages />} />
+                  <Route path="analytics" element={<Analytics />} />
+                </Route>
+
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+
+            </AnimatePresence>
           </ErrorBoundary>)}
       </div>
 
