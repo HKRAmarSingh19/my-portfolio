@@ -43,7 +43,11 @@ api.interceptors.response.use(
 
 export const authApi = {
   login: (credentials) => api.post('/auth/login', credentials),
-  googleLogin: (code, redirectUri) => api.post('/auth/google', { code, redirectUri }),
+  googleLogin: (code, redirectUri) => api.post(
+    '/auth/google',
+    { code, redirectUri },
+    { headers: { 'X-Requested-With': 'XmlHttpRequest' } }
+  ),
   getMe: () => api.get('/auth/me'),
   updateDetails: (data) => api.put('/auth/update-details', data),
   logout: () => api.post('/auth/logout'),
@@ -107,9 +111,6 @@ export const messagesApi = {
   toggleRead: (id, read) => api.patch(`/messages/${id}/read`, { read }),
   toggleStar: (id) => api.patch(`/messages/${id}/star`),
   delete: (id) => api.delete(`/messages/${id}`),
-  // Gmail OAuth connection and reply actions (admin-only).
-  getGmailStatus: () => api.get('/messages/gmail/status'),
-  connectGmail: () => api.get('/messages/gmail/connect'),
   sendReply: (id, reply) => api.post(`/messages/${id}/reply`, { reply }),
 };
 

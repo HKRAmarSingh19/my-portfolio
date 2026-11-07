@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Mail,
@@ -9,9 +9,7 @@ import {
   Check,
   AlertCircle,
   Send,
-  Link2,
   Loader2,
-  RefreshCw,
   Clock,
 } from 'lucide-react';
 import { messagesApi } from '../../api/client';
@@ -31,33 +29,6 @@ export const Messages = () => {
 
   const messages = data?.data?.data || [];
 
-  const {
-    data: gmailStatusResponse,
-    isLoading: isGmailStatusLoading,
-    isError: isGmailStatusError,
-    refetch: refetchGmailStatus,
-  } = useQuery({
-    queryKey: ['gmailStatus'],
-    queryFn: messagesApi.getGmailStatus,
-    retry: false,
-  });
-
-  const gmailStatus = gmailStatusResponse?.data || {};
-
-  // Show a one-time notice after Google redirects back from OAuth.
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const gmailResult = params.get('gmail');
-
-    if (gmailResult === 'connected') {
-      refetchGmailStatus();
-      window.history.replaceState({}, document.title, window.location.pathname);
-    } else if (gmailResult === 'error') {
-      const reason = params.get('reason') || 'Google authorization failed';
-      setReplyError(`Gmail connection failed: ${reason}`);
-      window.history.replaceState({}, document.title, window.location.pathname);
-    }
-  }, [refetchGmailStatus]);
 
   const toggleReadMutation = useMutation({
     mutationFn: ({ id, read }) => messagesApi.toggleRead(id, read),
@@ -83,23 +54,6 @@ export const Messages = () => {
     },
   });
 
-  const connectGmailMutation = useMutation({
-    mutationFn: messagesApi.connectGmail,
-    onSuccess: (response) => {
-      const authorizationUrl = response?.data?.url;
-      if (authorizationUrl) {
-        window.location.assign(authorizationUrl);
-      } else {
-        setReplyError('Google did not return an authorization URL. Please try again.');
-      }
-    },
-    onError: (error) => {
-      setReplyError(
-        error.response?.data?.message ||
-        'Could not start Gmail connection. Please sign in again and retry.'
-      );
-    },
-  });
 
   const sendReplyMutation = useMutation({
     mutationFn: ({ id, reply }) => messagesApi.sendReply(id, reply),
@@ -166,23 +120,6 @@ export const Messages = () => {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={() => connectGmailMutation.mutate()}
-            disabled={connectGmailMutation.isPending || isGmailStatusLoading}
-            className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium border transition-colors disabled:opacity-50 ${
-              gmailStatus.connected
-                ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400'
-                : 'border-indigo-500/30 bg-indigo-500/10 text-indigo-300 hover:bg-indigo-500/20'
-            }`}
-          >
-            {connectGmailMutation.isPending ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            ) : (
-              <Link2 className="w-3.5 h-3.5" />
-            )}
-            {gmailStatus.connected ? 'Reconnect Gmail' : 'Connect Gmail'}
-          </button>
 
           <button
             type="button"
@@ -198,34 +135,6 @@ export const Messages = () => {
         </div>
       </div>
 
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-xl border border-neutral-800 bg-neutral-900/70 px-4 py-3">
-        <div className="flex items-center gap-2 min-w-0">
-          <Mail className="w-4 h-4 text-indigo-400 shrink-0" />
-          {isGmailStatusLoading ? (
-            <span className="text-xs text-neutral-400">Checking Gmail connection...</span>
-          ) : isGmailStatusError ? (
-            <span className="text-xs text-amber-400">
-              Could not check Gmail connection. Refresh to retry.
-            </span>
-          ) : gmailStatus.connected ? (
-            <span className="text-xs text-emerald-400 truncate">
-              Gmail connected: {gmailStatus.email}
-            </span>
-          ) : (
-            <span className="text-xs text-neutral-400">
-              Gmail is not connected. Connect it to send replies from this inbox.
-            </span>
-          )}
-        </div>
-        <button
-          type="button"
-          onClick={() => refetchGmailStatus()}
-          className="inline-flex items-center gap-1.5 text-xs text-neutral-400 hover:text-white"
-        >
-          <RefreshCw className="w-3 h-3" />
-          Refresh status
-        </button>
-      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         <div className="lg:col-span-5 bg-neutral-900 rounded-2xl border border-neutral-800 overflow-hidden divide-y divide-neutral-800/80 max-h-[700px] overflow-y-auto">
@@ -395,11 +304,6 @@ export const Messages = () => {
                   <h4 className="text-sm font-semibold text-white">Write a reply</h4>
                 </div>
 
-                {!gmailStatus.connected && (
-                  <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3 text-xs text-amber-300">
-                    Connect Gmail before sending a reply. Your draft will remain in this form.
-                  </div>
-                )}
 
                 {replyError && (
                   <div className="flex items-start gap-2 rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-xs text-red-400">
@@ -427,7 +331,6 @@ export const Messages = () => {
                     <button
                       type="submit"
                       disabled={
-                        !gmailStatus.connected ||
                         !replyText.trim() ||
                         sendReplyMutation.isPending
                       }

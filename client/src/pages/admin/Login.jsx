@@ -72,7 +72,7 @@ export const Login = () => {
       const redirectUri = window.location.origin;
       codeClientRef.current = window.google.accounts.oauth2.initCodeClient({
         client_id: googleClientId,
-        scope: 'openid email profile',
+        scope: 'openid email profile https://www.googleapis.com/auth/gmail.send',
         ux_mode: 'popup',
         // NOTE: do NOT pass redirect_uri here. For popup mode Google defaults it
         // to the calling page's origin; passing it explicitly can break the

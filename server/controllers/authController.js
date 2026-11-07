@@ -1,5 +1,7 @@
 import crypto from 'crypto';
 import User from '../models/User.js';
+import GmailCredential from '../models/GmailCredential.js';
+import { encryptRefreshToken } from '../utils/gmailTokenCrypto.js';
 
 // Minimal user shape returned for an authenticated session (password never
 // included). Shared by login, getMe, and the Google sign-in.
@@ -39,7 +41,7 @@ export const getMe = async (req, res, next) => {
 
 export const updateDetails = async (req, res, next) => {
   try {
-    const { name, email, bio, headline, avatar, images, featuredImages, currentPassword, newPassword } = req.body;
+    const { name, bio, headline, avatar, images, featuredImages, currentPassword, newPassword } = req.body;
     const user = await User.findById(req.user.id).select('+password');
 
     if (!user) {
@@ -47,7 +49,6 @@ export const updateDetails = async (req, res, next) => {
     }
 
     if (name) user.name = name;
-    if (email) user.email = email;
     if (bio !== undefined) user.bio = bio;
     if (headline !== undefined) user.headline = headline;
     if (avatar !== undefined) user.avatar = avatar;
@@ -102,7 +103,7 @@ export const updateDetails = async (req, res, next) => {
  */
 export const googleLogin = async (req, res, next) => {
   try {
-    const { code } = req.body;
+    const { code, redirectUri } = req.body;
     const { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET } = process.env;
 
     if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
@@ -112,16 +113,55 @@ export const googleLogin = async (req, res, next) => {
       });
     }
 
-    // 1. Exchange the authorization code for tokens using the server-side secret.
-    //
-    // For the token exchange, `redirect_uri` MUST match what was used when the
-    // authorization code was created. This app uses Google Identity Services in
-    // popup mode, which always passes the code via `postmessage` — so the token
-    // exchange must use exactly that, regardless of what origin the browser is
-    // on (5173, 5174, production...). A hardcoded GOOGLE_REDIRECT_URI would send
-    // a mismatched URI here and silently break login if the client origin ever
-    // differs from it — so we always use `postmessage`.
-    const exchangeRedirectUri = 'postmessage';
+    // GIS popup mode requires this custom header as a CSRF defence.
+    if (req.get('X-Requested-With') !== 'XmlHttpRequest') {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid Google authorization request.',
+      });
+    }
+
+    if (typeof code !== 'string' || !code.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Google authorization code is missing.',
+      });
+    }
+
+    // The redirect_uri in the token exchange must be the exact origin
+    // that called initCodeClient() in GIS popup mode.
+    const allowedOrigins = [
+      process.env.CLIENT_URL,
+      ...(process.env.ALLOWED_FRONTEND_ORIGINS || '').split(','),
+      'http://localhost:5173',
+      'http://127.0.0.1:5173',
+    ]
+      .filter(Boolean)
+      .map((value) => {
+        try {
+          return new URL(value.trim()).origin;
+        } catch {
+          return null;
+        }
+      })
+      .filter(Boolean);
+
+    let exchangeRedirectUri;
+    try {
+      exchangeRedirectUri = new URL(redirectUri).origin;
+    } catch {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid Google redirect origin.',
+      });
+    }
+
+    if (!allowedOrigins.includes(exchangeRedirectUri)) {
+      return res.status(400).json({
+        success: false,
+        message: 'This frontend origin is not allowed.',
+      });
+    }
 
     const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
@@ -134,60 +174,95 @@ export const googleLogin = async (req, res, next) => {
         grant_type: 'authorization_code',
       }),
     });
+
     const tokenData = await tokenRes.json();
+
     if (!tokenRes.ok || !tokenData.id_token) {
+      console.error('Google token exchange failed:', {
+        status: tokenRes.status,
+        error: tokenData.error,
+        description: tokenData.error_description,
+      });
       return res.status(401).json({
         success: false,
         message: 'Google could not verify the authorization code.',
       });
     }
 
-    // 2. Validate the id_token with Google's tokeninfo endpoint (dependency-free;
-    //    no need to ship Google's public certs or do manual JWT/RSA verification).
     const infoRes = await fetch(
       `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(tokenData.id_token)}`
     );
     const profile = await infoRes.json();
-    if (!infoRes.ok || profile.email_verified !== 'true' || !profile.email) {
+
+    if (
+      !infoRes.ok ||
+      profile.aud !== GOOGLE_CLIENT_ID ||
+      profile.email_verified !== 'true' ||
+      !profile.email
+    ) {
       return res.status(401).json({
         success: false,
         message: 'Unable to verify the Google account.',
       });
     }
 
-    // 3. The allowlist gate: verified email must be in ALLOWED_ADMIN_EMAILS (a
-    //    comma-separated list of the only accounts permitted). Don't reveal the
-    //    expected addresses on failure. Empty/missing list => nobody may log in.
-    const allowed = (process.env.ALLOWED_ADMIN_EMAILS || '')
+    const adminEmail = profile.email.trim().toLowerCase();
+    const allowedAdmins = (process.env.ALLOWED_ADMIN_EMAILS || '')
       .split(',')
-      .map((s) => s.trim().toLowerCase())
+      .map((email) => email.trim().toLowerCase())
       .filter(Boolean);
-    if (!allowed.includes(profile.email.toLowerCase())) {
+
+    if (!allowedAdmins.includes(adminEmail)) {
       return res.status(403).json({
         success: false,
         message: 'This Google account is not authorized to sign in.',
       });
     }
 
-    // 4. Upsert the admin user (single admin — match on email). A brand-new
-    //    Google sign-in creates the user with a random, unusable password, so
-    //    the password field is never empty and bcrypt-hashing stays consistent.
-    let user = await User.findOne({ email: profile.email }).select('+tokenVersion');
+    let user = await User.findOne({ email: adminEmail }).select('+tokenVersion');
+
     if (!user) {
       user = await User.create({
         name: profile.name || profile.given_name || 'Admin',
-        email: profile.email,
+        email: adminEmail,
         avatar: profile.picture || undefined,
-        // Random password: this admin signs in via Google, not a password.
         password: crypto.randomBytes(24).toString('hex'),
       });
     }
 
+    // One refresh token per authorized admin. Google commonly returns a
+    // refresh_token only on the first offline authorization. Never overwrite
+    // a saved token with null on later logins.
+    const existingCredential = await GmailCredential.findOne({
+      provider: 'gmail',
+      email: adminEmail,
+    });
+
+    if (tokenData.refresh_token) {
+      const encrypted = encryptRefreshToken(tokenData.refresh_token);
+      await GmailCredential.findOneAndUpdate(
+        { provider: 'gmail', email: adminEmail },
+        {
+          provider: 'gmail',
+          email: adminEmail,
+          ...encrypted,
+        },
+        {
+          upsert: true,
+          new: true,
+          setDefaultsOnInsert: true,
+        }
+      );
+    }
+
+    const gmailConnected = Boolean(tokenData.refresh_token || existingCredential);
     const token = user.getSignedJwtToken();
-    res.status(200).json({
+
+    return res.status(200).json({
       success: true,
       token,
       user: serializeUser(user),
+      gmailConnected,
     });
   } catch (error) {
     next(error);

@@ -6,15 +6,22 @@ const gmailCredentialSchema = new mongoose.Schema(
       type: String,
       enum: ['gmail'],
       default: 'gmail',
-      unique: true,
       required: true,
     },
-    email: { type: String, trim: true, lowercase: true, required: true },
+    email: {
+      type: String,
+      trim: true,
+      lowercase: true,
+      required: true,
+    },
     encryptedRefreshToken: { type: String, required: true },
     iv: { type: String, required: true },
     authTag: { type: String, required: true },
   },
   { timestamps: true }
 );
+
+// Each allowed admin has an independent Gmail credential.
+gmailCredentialSchema.index({ provider: 1, email: 1 }, { unique: true });
 
 export default mongoose.model('GmailCredential', gmailCredentialSchema);

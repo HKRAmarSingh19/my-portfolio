@@ -43,6 +43,9 @@ connectDB();
 
 const app = express();
 
+// Render and other reverse proxies forward the original client IP.
+app.set('trust proxy', 1);
+
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
 }));
@@ -52,6 +55,7 @@ const allowedOrigins = [
   'http://127.0.0.1:5173',
   'http://localhost:3000',
   process.env.CLIENT_URL,
+  ...(process.env.ALLOWED_FRONTEND_ORIGINS || '').split(',').map((origin) => origin.trim()),
 ].filter(Boolean);
 
 app.use(cors({

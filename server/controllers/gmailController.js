@@ -1,22 +1,9 @@
-
-import jwt from 'jsonwebtoken';
 import Message from '../models/Message.js';
 import GmailCredential from '../models/GmailCredential.js';
+import { decryptRefreshToken } from '../utils/gmailTokenCrypto.js';
 
-import {
-  createGoogleOAuthClient,
-  GMAIL_SCOPES,
-  google,
-} from '../config/googleOAuth.js';
-
-import {
-  encryptRefreshToken,
-  decryptRefreshToken,
-} from '../utils/gmailTokenCrypto.js';
-
-// --------------------------------------------------
-// HELPERS
-// --------------------------------------------------
+const normalizeEmail = (value) =>
+  typeof value === 'string' ? value.trim().toLowerCase() : '';
 
 const getAllowedAdminEmails = () =>
   (process.env.ALLOWED_ADMIN_EMAILS || '')
@@ -24,302 +11,21 @@ const getAllowedAdminEmails = () =>
     .map((email) => email.trim().toLowerCase())
     .filter(Boolean);
 
-const normalizeEmail = (email) =>
-  typeof email === 'string' ? email.trim().toLowerCase() : '';
-
 const isAllowedAdmin = (email) =>
   getAllowedAdminEmails().includes(normalizeEmail(email));
 
-const getClientUrl = () =>
-  (process.env.CLIENT_URL || 'http://localhost:5173')
-    .replace(/\/+$/, '');
-
-const getAdminMessagesUrl = () =>
-  `${getClientUrl()}/admin/messages`;
-
-const redirectWithError = (res, reason) =>
-  res.redirect(
-    `${getAdminMessagesUrl()}?gmail=error&reason=${encodeURIComponent(reason)}`
-  );
-
-// --------------------------------------------------
-// 1. START GMAIL OAUTH
-// GET /api/messages/gmail/connect
-// Protected route
-// --------------------------------------------------
-
-export const startGmailOAuth = async (req, res, next) => {
+const jsonOrEmpty = async (response) => {
   try {
-    const adminEmail = normalizeEmail(req.user?.email);
-
-    // Only an authorized admin can connect Gmail.
-    if (!adminEmail || !isAllowedAdmin(adminEmail)) {
-      return res.status(403).json({
-        success: false,
-        message: 'Unauthorized admin account.',
-      });
-    }
-
-    if (!process.env.JWT_SECRET) {
-      throw new Error('JWT_SECRET is not configured.');
-    }
-
-    const oauth2Client = createGoogleOAuthClient();
-
-    // Signed state binds this authorization request to the admin.
-    const state = jwt.sign(
-      {
-        purpose: 'gmail-oauth',
-        adminEmail,
-      },
-      process.env.JWT_SECRET,
-      { expiresIn: '10m' }
-    );
-
-    const url = oauth2Client.generateAuthUrl({
-      access_type: 'offline',
-      prompt: 'consent select_account',
-      scope: GMAIL_SCOPES,
-      state,
-    });
-
-    return res.status(200).json({
-      success: true,
-      url,
-    });
-  } catch (error) {
-    next(error);
+    return await response.json();
+  } catch {
+    return {};
   }
 };
-
-// --------------------------------------------------
-// 2. GMAIL OAUTH CALLBACK
-// GET /api/messages/gmail/callback
-// Public route
-// --------------------------------------------------
-
-export const handleGmailOAuthCallback = async (req, res) => {
-  try {
-    if (req.query.error) {
-      return redirectWithError(
-        res,
-        'google_authorization_denied'
-      );
-    }
-
-    const { code, state } = req.query;
-
-    if (
-      typeof code !== 'string' ||
-      typeof state !== 'string'
-    ) {
-      return redirectWithError(
-        res,
-        'missing_code_or_state'
-      );
-    }
-
-    if (!process.env.JWT_SECRET) {
-      console.error('JWT_SECRET is missing.');
-      return redirectWithError(
-        res,
-        'server_configuration_error'
-      );
-    }
-
-    // Verify signed OAuth state.
-    let decoded;
-
-    try {
-      decoded = jwt.verify(state, process.env.JWT_SECRET);
-    } catch {
-      return redirectWithError(
-        res,
-        'invalid_or_expired_state'
-      );
-    }
-
-    const adminEmail = normalizeEmail(decoded.adminEmail);
-
-    if (
-      decoded.purpose !== 'gmail-oauth' ||
-      !adminEmail ||
-      !isAllowedAdmin(adminEmail)
-    ) {
-      return redirectWithError(
-        res,
-        'unauthorized_admin'
-      );
-    }
-
-    // Exchange authorization code for Google tokens.
-    const oauth2Client = createGoogleOAuthClient();
-
-    const { tokens } = await oauth2Client.getToken(code);
-
-    // OpenID email scope should provide an ID token.
-    if (!tokens.id_token) {
-      return redirectWithError(
-        res,
-        'missing_google_identity'
-      );
-    }
-
-    // Verify the ID token with Google.
-    const ticket = await oauth2Client.verifyIdToken({
-      idToken: tokens.id_token,
-      audience: process.env.GOOGLE_CLIENT_ID,
-    });
-
-    const payload = ticket.getPayload();
-
-    const connectedEmail = normalizeEmail(payload?.email);
-
-    if (
-      !connectedEmail ||
-      payload.email_verified !== true
-    ) {
-      return redirectWithError(
-        res,
-        'unverified_google_email'
-      );
-    }
-
-    // Connected Gmail must match the logged-in admin.
-    if (
-      connectedEmail !== adminEmail ||
-      !isAllowedAdmin(connectedEmail)
-    ) {
-      return redirectWithError(
-        res,
-        'gmail_account_mismatch'
-      );
-    }
-
-    // Optional environment-level sender restriction.
-    const configuredEmail = normalizeEmail(
-      process.env.GMAIL_USER_EMAIL
-    );
-
-    if (
-      configuredEmail &&
-      configuredEmail !== connectedEmail
-    ) {
-      return redirectWithError(
-        res,
-        'configured_email_mismatch'
-      );
-    }
-
-    // Find existing Gmail credential.
-    const existing = await GmailCredential.findOne({
-      provider: 'gmail',
-    });
-
-    // Never reuse a refresh token belonging to another Gmail account.
-    const existingRefreshToken =
-      existing &&
-      normalizeEmail(existing.email) === connectedEmail
-        ? decryptRefreshToken(existing)
-        : null;
-
-    const refreshToken =
-      tokens.refresh_token || existingRefreshToken;
-
-    if (!refreshToken) {
-      return redirectWithError(
-        res,
-        'no_refresh_token'
-      );
-    }
-
-    // Encrypt refresh token before storing it.
-    const encrypted = encryptRefreshToken(refreshToken);
-
-    await GmailCredential.findOneAndUpdate(
-      { provider: 'gmail' },
-      {
-        provider: 'gmail',
-        email: connectedEmail,
-        ...encrypted,
-      },
-      {
-        upsert: true,
-        new: true,
-        setDefaultsOnInsert: true,
-      }
-    );
-
-    console.log(
-      `Gmail connected successfully: ${connectedEmail}`
-    );
-
-    return res.redirect(
-      `${getAdminMessagesUrl()}?gmail=connected`
-    );
-  } catch (error) {
-    console.error(
-      'Gmail OAuth callback failed:',
-      error.message
-    );
-
-    return redirectWithError(
-      res,
-      'oauth_callback_failed'
-    );
-  }
-};
-
-// --------------------------------------------------
-// 3. GET GMAIL CONNECTION STATUS
-// GET /api/messages/gmail/status
-// Protected route
-// --------------------------------------------------
-
-export const getGmailStatus = async (req, res, next) => {
-  try {
-    const adminEmail = normalizeEmail(req.user?.email);
-
-    if (!adminEmail || !isAllowedAdmin(adminEmail)) {
-      return res.status(403).json({
-        success: false,
-        message: 'Unauthorized admin account.',
-      });
-    }
-
-    const credential = await GmailCredential.findOne({
-      provider: 'gmail',
-    }).select('email updatedAt');
-
-    // Only show connected status for the same admin account.
-    const isConnected =
-      Boolean(credential) &&
-      normalizeEmail(credential.email) === adminEmail;
-
-    return res.status(200).json({
-      success: true,
-      connected: isConnected,
-      email: isConnected ? credential.email : null,
-      connectedAt: isConnected
-        ? credential.updatedAt
-        : null,
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-// --------------------------------------------------
-// 4. SEND REPLY TO VISITOR
-// POST /api/messages/:id/reply
-// Protected route
-// --------------------------------------------------
 
 export const sendMessageReply = async (req, res, next) => {
   try {
     const adminEmail = normalizeEmail(req.user?.email);
 
-    // Verify admin identity.
     if (!adminEmail || !isAllowedAdmin(adminEmail)) {
       return res.status(403).json({
         success: false,
@@ -328,21 +34,16 @@ export const sendMessageReply = async (req, res, next) => {
     }
 
     const reply =
-      typeof req.body.reply === 'string'
-        ? req.body.reply.trim()
-        : '';
+      typeof req.body.reply === 'string' ? req.body.reply.trim() : '';
 
     if (!reply || reply.length > 10000) {
       return res.status(400).json({
         success: false,
-        message:
-          'Reply must contain between 1 and 10,000 characters.',
+        message: 'Reply must contain between 1 and 10,000 characters.',
       });
     }
 
-    // Find original visitor message.
     const message = await Message.findById(req.params.id);
-
     if (!message) {
       return res.status(404).json({
         success: false,
@@ -350,77 +51,80 @@ export const sendMessageReply = async (req, res, next) => {
       });
     }
 
-    // Validate visitor email before using it in an email header.
     const recipientEmail = normalizeEmail(message.email);
-
     const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-    if (
-      !emailPattern.test(recipientEmail) ||
-      /[\r\n]/.test(message.email || '')
-    ) {
+    if (!emailPattern.test(recipientEmail) || /[\r\n]/.test(message.email || '')) {
       return res.status(400).json({
         success: false,
         message: 'Visitor email address is invalid.',
       });
     }
 
-    // Check Gmail connection.
+    // Important: select the logged-in admin's credential, never a global one.
     const credential = await GmailCredential.findOne({
       provider: 'gmail',
+      email: adminEmail,
     });
 
     if (!credential) {
       return res.status(409).json({
         success: false,
-        message: 'Gmail is not connected. Connect Gmail first.',
-      });
-    }
-
-    // Connected Gmail must match the currently logged-in admin.
-    if (
-      normalizeEmail(credential.email) !== adminEmail
-    ) {
-      return res.status(403).json({
-        success: false,
         message:
-          'Connected Gmail does not match the authorized admin.',
+          'Gmail permission is not saved for this account. Sign in again and grant Gmail send permission.',
       });
     }
 
-    // Get decrypted refresh token.
     const refreshToken = decryptRefreshToken(credential);
+    const { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET } = process.env;
 
-    if (!refreshToken) {
-      return res.status(409).json({
+    if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
+      return res.status(500).json({
         success: false,
-        message:
-          'Gmail refresh token is missing. Reconnect Gmail.',
+        message: 'Google OAuth credentials are not configured.',
       });
     }
 
-    // Configure Google OAuth client.
-    const oauth2Client = createGoogleOAuthClient();
-
-    oauth2Client.setCredentials({
-      refresh_token: refreshToken,
+    // Exchange the stored refresh token for a short-lived access token.
+    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id: GOOGLE_CLIENT_ID,
+        client_secret: GOOGLE_CLIENT_SECRET,
+        refresh_token: refreshToken,
+        grant_type: 'refresh_token',
+      }),
     });
 
-    const gmail = google.gmail({
-      version: 'v1',
-      auth: oauth2Client,
-    });
+    const tokenData = await jsonOrEmpty(tokenResponse);
 
-    // Prepare email subject.
+    if (!tokenResponse.ok || !tokenData.access_token) {
+      console.error('Gmail token refresh failed:', {
+        status: tokenResponse.status,
+        error: tokenData.error,
+        description: tokenData.error_description,
+        adminEmail,
+      });
+
+      const status = tokenData.error === 'invalid_grant' ||
+        tokenData.error === 'unauthorized_client' ? 401 : 502;
+
+      return res.status(status).json({
+        success: false,
+        message:
+          'Google rejected this account’s saved Gmail authorization. Sign in again and grant Gmail send permission.',
+        code: tokenData.error || 'gmail_token_refresh_failed',
+      });
+    }
+
     const safeSubject = (message.subject || 'General Inquiry')
       .replace(/[\r\n]+/g, ' ')
       .trim();
-
     const subject = /^re:/i.test(safeSubject)
       ? safeSubject
       : `Re: ${safeSubject}`;
 
-    // Quote original visitor message.
     const quotedOriginal = (message.message || '')
       .split(/\r?\n/)
       .map((line) => `> ${line}`)
@@ -445,7 +149,6 @@ export const sendMessageReply = async (req, res, next) => {
       quotedOriginal,
     ].join('\n');
 
-    // Build MIME email headers.
     const headers = [
       `From: ${credential.email}`,
       `To: ${recipientEmail}`,
@@ -455,47 +158,59 @@ export const sendMessageReply = async (req, res, next) => {
       'Content-Transfer-Encoding: 8bit',
     ];
 
-    const rawMessage =
-      `${headers.join('\r\n')}\r\n\r\n${body}`;
-
-    // Gmail API requires base64url encoded MIME message.
     const raw = Buffer
-      .from(rawMessage, 'utf8')
+      .from(`${headers.join('\r\n')}\r\n\r\n${body}`, 'utf8')
       .toString('base64url');
 
-    // Send email through the connected Gmail account.
-    const sent = await gmail.users.messages.send({
-      userId: 'me',
-      requestBody: {
-        raw,
-      },
-    });
+    const gmailResponse = await fetch(
+      'https://gmail.googleapis.com/gmail/v1/users/me/messages/send',
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${tokenData.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ raw }),
+      }
+    );
 
-    // Save reply in MongoDB conversation history.
+    const sent = await jsonOrEmpty(gmailResponse);
+
+    if (!gmailResponse.ok) {
+      console.error('Gmail API send failed:', {
+        status: gmailResponse.status,
+        error: sent.error?.message || sent.error,
+        adminEmail,
+      });
+
+      return res.status(gmailResponse.status === 401 ? 401 : 502).json({
+        success: false,
+        message: sent.error?.message || 'Gmail could not send this reply.',
+      });
+    }
+
     message.replies = message.replies || [];
-
     message.replies.push({
       body: reply,
       from: credential.email,
       to: recipientEmail,
       sentAt: new Date(),
-      gmailMessageId: sent.data.id || null,
+      gmailMessageId: sent.id || null,
     });
 
     await message.save();
 
     return res.status(200).json({
       success: true,
-      message:
-        'Reply sent successfully and saved to the conversation.',
+      message: 'Reply sent successfully and saved to the conversation.',
       data: message,
     });
   } catch (error) {
-    console.error(
-      'Gmail reply failed:',
-      error.message
-    );
-
+    console.error('Gmail reply failed:', {
+      message: error.message,
+      code: error.code,
+      status: error.response?.status,
+    });
     next(error);
   }
 };
